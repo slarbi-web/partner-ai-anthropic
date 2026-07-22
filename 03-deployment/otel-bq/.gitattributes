@@ -1,0 +1,8 @@
+# Everything here is consumed by bash — including config.env.example, which every
+# script `source`s. A CRLF checkout (core.autocrlf=true is the Windows default)
+# breaks those with `$'\r': command not found`, so pin the whole directory to LF
+# regardless of the cloner's settings.
+* text=auto eol=lf
+
+# The Windows shim is executed by cmd.exe, which wants CRLF.
+*.cmd text eol=crlf
