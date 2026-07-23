@@ -1,7 +1,7 @@
 # Vogue Concierge — Python dependencies
 # Pinned for compatibility with google-adk + Agent Runtime.
 
-# === Core ADK + Vertex AI ===
+# === Core ADK + Agent Platform ===
 google-adk>=1.2.0
 google-cloud-aiplatform>=1.80.0
 

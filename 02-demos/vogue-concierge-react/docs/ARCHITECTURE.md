@@ -2,7 +2,7 @@
 
 # Vogue Concierge — System Architecture & Multi-Agent Design
 
-This document provides a comprehensive technical overview of the **Vogue Concierge** multi-agent retail platform built on **Google Cloud Platform (GCP)** and powered by **Anthropic Claude models** via **Vertex AI Model Garden**.
+This document provides a comprehensive technical overview of the **Vogue Concierge** multi-agent retail platform built on **Google Cloud Platform (GCP)** and powered by **Anthropic Claude models** via **Agent Platform Model Garden**.
 
 ---
 
@@ -18,7 +18,7 @@ Vogue Concierge is an enterprise AI luxury boutique concierge platform. The appl
 * **Frontend UI:** A Next.js / React storefront (`/ui`).
 * **FastAPI Backend Relay:** A Python FastAPI server (`app.py`) running on Google Cloud Run that handles REST/SSE chat streaming, user session management, and transactional database actions.
 * **Agent Runtime:** A multi-agent ecosystem hosted on **Agent Runtime** using **Google Agent Development Kit (ADK)** and the official Anthropic SDK (`anthropic[vertex]`).
-* **Data Layer:** A dual data architecture separating unstructured semantic search (**Vertex AI RAG Engine**) from structured database transactions (**Google BigQuery**).
+* **Data Layer:** A dual data architecture separating unstructured semantic search (**Agent Platform RAG Engine**) from structured database transactions (**Google BigQuery**).
 
 ---
 
@@ -67,7 +67,7 @@ The architecture strictly delineates unstructured vector search from structured 
 
 ```
                           ┌──────────────────────────┐
-                          │   Vertex AI RAG Engine   │
+                          │   Agent Platform RAG Engine   │
                           │  (Catalog Copy & Trends) │
                           └────────────▲─────────────┘
                                        │
@@ -92,7 +92,7 @@ The architecture strictly delineates unstructured vector search from structured 
                           └──────────────────────────┘
 ```
 
-### 1. Vertex AI RAG Engine
+### 1. Agent Platform RAG Engine
 * **Purpose:** Stores vector embeddings of unstructured text assets, including seasonal trend reports (`trend_report.md`) and product catalog descriptions (`products.json`).
 * **Access:** Accessed via python tool functions (`catalog_search` and `trend_search`) in all three specialist agents via `vertexai.preview.rag.retrieval_query`.
 

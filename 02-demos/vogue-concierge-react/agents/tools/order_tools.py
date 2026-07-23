@@ -15,7 +15,7 @@
 """BigQuery-backed SIGNAL tools for the agent (run on Agent Runtime).
 
 IMPORTANT — where the real work happens:
-The Agent Runtime sandbox can reach Vertex AI (Claude, RAG) but NOT BigQuery. So
+The Agent Runtime sandbox can reach Agent Platform (Claude, RAG) but NOT BigQuery. So
 these tools do NOT touch BigQuery — they only validate input and SIGNAL intent by
 returning their parameters. The Cloud Run layer (app.py for the React UI,
 a2a/server.py for Gemini Enterprise) sees the tool call in the Agent Runtime event

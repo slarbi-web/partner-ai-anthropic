@@ -19,7 +19,7 @@ WHAT THIS FILE IS
 Google ADK (Agent Development Kit) talks to language models through a small
 interface called ``BaseLlm``. ADK ships first-class support for Gemini, and a
 LiteLLM bridge for "everything else". This file instead plugs **Claude models,
-served on Google Cloud Vertex AI, into ADK directly via Anthropic's official
+served on Google Cloud Agent Platform, into ADK directly via Anthropic's official
 SDK** (``AnthropicVertex``). That gives us:
 
   * Native Anthropic tool-calling (no OpenAI-compatibility shim in the middle).
@@ -39,7 +39,7 @@ back. Nothing more.
 
 HOW TO REUSE THIS IN YOUR OWN ENVIRONMENT
 -----------------------------------------
-1. Enable the Claude models you want in Vertex AI **Model Garden** for your
+1. Enable the Claude models you want in Agent Platform **Model Garden** for your
    project + region (one-time, in the Google Cloud console or via gcloud).
 2. ``pip install "anthropic[vertex]"`` (the ``[vertex]`` extra pulls in the
    google-auth pieces).
@@ -108,7 +108,7 @@ def _mark_cache(message: dict) -> None:
 
 
 class ClaudeVertexModel(BaseLlm):
-    """An ADK model backed by a Claude model on Vertex AI.
+    """An ADK model backed by a Claude model on Agent Platform.
 
     Each ADK ``Agent`` gets its own instance so we can pick *the right model for
     the job* — e.g. Opus for the Style Advisor's deep reasoning, Haiku for fast

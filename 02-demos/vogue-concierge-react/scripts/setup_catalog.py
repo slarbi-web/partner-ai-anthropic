@@ -15,7 +15,7 @@
 """
 Setup Catalog — Vogue Concierge
 =================================
-Generates product images using Imagen 3 on Vertex AI and uploads
+Generates product images using Imagen 3 on Agent Platform and uploads
 everything to a NEW GCS bucket separate from V1.
 
 Creates:

@@ -14,7 +14,7 @@
 
 """Test connection — Vogue Concierge (Claude on Agent Platform).
 
-Validates that Claude is reachable on Vertex AI in your project. Run this FIRST,
+Validates that Claude is reachable on Agent Platform in your project. Run this FIRST,
 before deploying anything else — if this fails, check that you enabled the Claude
 models in Vertex AI Model Garden and that CLAUDE_VERTEX_REGION is correct.
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         print(f"FAILED: {e}")
         print(
             "\nChecklist:\n"
-            "  - Enabled Claude models in Vertex AI Model Garden for this project?\n"
+            "  - Enabled Claude models in Agent Platform Model Garden for this project?\n"
             "  - Is CLAUDE_VERTEX_REGION a region that serves the model?\n"
             "  - Did you run `gcloud auth application-default login`?\n"
             "  - Installed deps? `pip install \"anthropic[vertex]\"`"

@@ -16,7 +16,7 @@
 
 WHY THIS LIVES HERE AND NOT IN THE AGENT
 ----------------------------------------
-The agents run on Agent Runtime, whose sandbox can reach Vertex AI
+The agents run on Agent Runtime, whose sandbox can reach Agent Platform
 (Claude, RAG) but NOT BigQuery or the MCP Toolbox. So the agent can't persist an
 order itself. Instead:
 

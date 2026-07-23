@@ -26,7 +26,7 @@ time — handy for A/B testing models without changing code).
 
 AUTH NOTE
 ---------
-Claude runs on Vertex AI and authenticates with Google Application Default
+Claude runs on Agent Platform and authenticates with Google Application Default
 Credentials (ADC). There is no Anthropic API key here — the previous per-request
 token-refresh plumbing (refreshing an ``OPENAI_API_KEY`` every turn) is gone.
 """
@@ -86,7 +86,7 @@ BQ_DATASET = "vogue_concierge"
 # GCS bucket with the 30 Imagen-generated product images.
 GCS_BUCKET = f"{PROJECT_ID}-vogue-concierge"
 
-# Vertex AI RAG corpus (catalog + trend report). Note it lives in its own region.
+# Agent Platform RAG corpus (catalog + trend report). Note it lives in its own region.
 RAG_REGION = "us-west1"
 RAG_CORPUS_DISPLAY_NAME = "vogue-concierge-catalog"
 RAG_CORPUS_RESOURCE = os.environ.get(

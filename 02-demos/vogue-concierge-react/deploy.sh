@@ -19,7 +19,7 @@
 # agents themselves are deployed separately with `python deploy_agent_engine.py`,
 # which prints the AGENT_ENGINE_ID you pass in below.
 #
-# Auth note: Claude runs on Vertex AI via the service account's ADC — there is no
+# Auth note: Claude runs on Agent Platform via the service account's ADC — there is no
 # Anthropic API key to set here.
 
 set -e

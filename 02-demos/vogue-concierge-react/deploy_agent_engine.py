@@ -16,14 +16,14 @@
 
 WHAT THIS DOES
 --------------
-Packages the ``agents/`` team + the ``data/`` catalog and uploads it to Vertex AI
+Packages the ``agents/`` team + the ``data/`` catalog and uploads it to Agent Platform
 Agent Runtime, which then hosts and serves the multi-agent system for you (no
 servers to run). The FastAPI app (``app.py``) and the A2A bridge both call this
 deployed engine via ``stream_query``.
 
 PREREQUISITES (one-time, in your own project)
 ---------------------------------------------
-  * Enable the Claude models in Vertex AI Model Garden for your project + the
+  * Enable the Claude models in Agent Platform Model Garden for your project + the
     region in CLAUDE_VERTEX_REGION (see agents/config.py).
   * Create the staging bucket below (or point STAGING_BUCKET at an existing one).
   * Have Application Default Credentials available (gcloud auth or a deploy SA).

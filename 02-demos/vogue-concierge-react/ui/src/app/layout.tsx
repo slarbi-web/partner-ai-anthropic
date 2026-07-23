@@ -17,7 +17,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Vogue Concierge — AI Boutique | Anthropic × Google Better Together',
-  description: 'Your elite AI fashion advisor. Powered by Claude on Agent Platform, Google ADK, MCP Toolbox, and Vertex AI RAG.',
+  description: 'Your elite AI fashion advisor. Powered by Claude on Agent Platform, Google ADK, MCP Toolbox, and Agent Platform RAG.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

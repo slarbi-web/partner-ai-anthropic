@@ -29,7 +29,7 @@ agent team, and the React UI — capturing every generated id into `.env` as it 
 The installer is **interactive and safe to re-run** — each step is idempotent, so
 if something fails (a missing model, a quota bump) you fix it and run it again to
 resume. The one thing it can't automate and will pause to walk you through is
-enabling the Claude + Imagen models in Vertex AI Model Garden.
+enabling the Claude + Imagen models in Agent Platform Model Garden.
 
 Prefer to run the steps yourself? See [Manual setup](#manual-setup) below.
 
@@ -66,7 +66,7 @@ Each agent runs on the Claude model that fits its job (configured in
 | Returns & Care | `claude-haiku-4-5` | Quick policy answers and garment-care advice |
 | Checkout | `claude-haiku-4-5` | Structured order flow (money math lives in the checkout tool) |
 
-Claude runs on Vertex AI via `AnthropicVertex`, authenticated with Google
+Claude runs on Agent Platform via `AnthropicVertex`, authenticated with Google
 Application Default Credentials — **there is no Anthropic API key**.
 
 ## Prerequisites
@@ -92,7 +92,7 @@ gcloud services enable \
 ```
 
 **3. Claude on Agent Platform (Model Garden + quota)**
-- In **Vertex AI → Model Garden**, enable each Claude model you use: **Sonnet
+- In **Agent Platform → Model Garden**, enable each Claude model you use: **Sonnet
   4.6**, **Opus 4.8**, and **Haiku 4.5**.
 - Confirm you have **quota** for them. `CLAUDE_VERTEX_REGION=global` routes to
   available capacity and is recommended; regional endpoints may lack Opus 4.8
@@ -100,7 +100,7 @@ gcloud services enable \
 
 **4. Imagen 3 (required)**
 - `scripts/setup_catalog.py` generates the 30 product images with **Imagen 3**
-  on Vertex AI. Imagen must be **enabled/allowlisted** for your project. Without
+  on Agent Platform. Imagen must be **enabled/allowlisted** for your project. Without
   it, catalog setup will not complete — this is a hard requirement, not optional.
 
 **5. Authentication & IAM**

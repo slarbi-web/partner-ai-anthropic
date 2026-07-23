@@ -30,7 +30,7 @@
 #   ./bootstrap.sh --yes      # accept defaults / skip confirmations (best-effort)
 #
 # The one thing it cannot automate is enabling the Claude + Imagen models in
-# Vertex AI Model Garden (a console click-through) and registering the A2A bridge
+# Agent Platform Model Garden (a console click-through) and registering the A2A bridge
 # in Gemini Enterprise — it pauses and walks you through both.
 # =============================================================================
 
@@ -187,7 +187,7 @@ ok "APIs enabled"
 # --- 5. Model Garden + Imagen gate (manual) --------------------------------
 step "Enable the Claude + Imagen models (one-time, console)"
 cat <<EOF
-    Vogue Concierge needs these models enabled in Vertex AI Model Garden for
+    Vogue Concierge needs these models enabled in Agent Platform Model Garden for
     project ${BOLD}${VERTEXAI_PROJECT}${RST}:
       • Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
       • Imagen 3 (imagen-3.0-generate-002) — used to generate the catalog images

@@ -142,7 +142,7 @@ export default function Home() {
                 <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#CC785C]"></div><span>Claude on Agent Platform</span></div>
                 <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500"></div><span>Google ADK</span></div>
                 <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div><span>MCP Toolbox</span></div>
-                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-gold-500"></div><span>Vertex AI RAG Engine</span></div>
+                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-gold-500"></div><span>Agent Platform RAG Engine</span></div>
               </div>
             </div>
           )}
@@ -194,7 +194,7 @@ export default function Home() {
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </button>
           </div>
-          <p className="text-center text-[10px] text-gray-400 mt-3">Anthropic &times; Google Better Together &bull; Claude on Agent Platform &bull; Google ADK &bull; MCP Toolbox &bull; Vertex AI RAG Engine</p>
+          <p className="text-center text-[10px] text-gray-400 mt-3">Anthropic &times; Google Better Together &bull; Claude on Agent Platform &bull; Google ADK &bull; MCP Toolbox &bull; Agent Platform RAG Engine</p>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@
 """
 Setup RAG — Vogue Concierge
 ==============================
-Creates a NEW Vertex AI RAG corpus and ingests product catalog + trend report.
+Creates a NEW Agent Platform RAG corpus and ingests product catalog + trend report.
 
 Separate from V1's RAG corpus.
 
