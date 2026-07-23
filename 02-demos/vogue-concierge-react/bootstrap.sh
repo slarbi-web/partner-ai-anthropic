@@ -95,7 +95,7 @@ printf '%s\n' "${BOLD}${BLU}"
 cat <<'BANNER'
   ┌───────────────────────────────────────────────┐
   │        Vogue Concierge — installer             │
-  │  Claude on Agent Platform · Vertex AI Agent Engine│
+  │  Claude on Agent Platform · Agent Runtime│
   └───────────────────────────────────────────────┘
 BANNER
 printf '%s' "${RST}"
@@ -151,7 +151,7 @@ DERIVED_NUMBER="$(gcloud projects describe "$VERTEXAI_PROJECT" --format='value(p
 ask PROJECT_NUMBER "GCP project number" "${DERIVED_NUMBER:-${PROJECT_NUMBER:-}}"
 [ -n "$PROJECT_NUMBER" ] || die "Could not determine the project number (check the project id / your access)."
 # The deploy scripts + setup scripts are pinned to us-central1 (RAG uses us-west1),
-# so keep Cloud Run / Agent Engine / BigQuery there to avoid a split-region deploy.
+# so keep Cloud Run / Agent Runtime / BigQuery there to avoid a split-region deploy.
 REGION="${REGION:-us-central1}"
 ask CLAUDE_VERTEX_REGION "Region that serves Claude on Agent Platform" "${CLAUDE_VERTEX_REGION:-global}"
 
@@ -218,7 +218,7 @@ grant roles/bigquery.jobUser
 grant roles/storage.objectViewer
 
 # --- 7. staging bucket ------------------------------------------------------
-step "Creating the Agent Engine staging bucket"
+step "Creating the Agent Runtime staging bucket"
 STAGING_BUCKET="gs://${VERTEXAI_PROJECT}-vogue-staging"
 if gsutil ls -b "$STAGING_BUCKET" >/dev/null 2>&1; then
   ok "${STAGING_BUCKET} already exists"
@@ -282,7 +282,7 @@ set_env TOOLBOX_URL "$TOOLBOX_URL"
 ok "TOOLBOX_URL=${TOOLBOX_URL}"
 
 # --- 12. deploy the agent team ---------------------------------------------
-step "Deploying the agent team to Vertex AI Agent Engine"
+step "Deploying the agent team to Agent Runtime"
 info "(reuses AGENT_ENGINE_ID from .env to update in place, if present)"
 AE_LOG="$(mktemp)"
 "$PYTHON" deploy_agent_engine.py 2>&1 | tee "$AE_LOG"

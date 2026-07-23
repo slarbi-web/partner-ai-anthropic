@@ -24,7 +24,7 @@ SDK** (``AnthropicVertex``). That gives us:
 
   * Native Anthropic tool-calling (no OpenAI-compatibility shim in the middle).
   * Authentication via Google Application Default Credentials (ADC) — the same
-    credentials Agent Engine, Cloud Run, and your local ``gcloud`` already use.
+    credentials Agent Runtime, Cloud Run, and your local ``gcloud`` already use.
     There is **no Anthropic API key** to manage; Vertex authorises the call.
   * One small, readable class you can lift into your own ADK project.
 
@@ -44,7 +44,7 @@ HOW TO REUSE THIS IN YOUR OWN ENVIRONMENT
 2. ``pip install "anthropic[vertex]"`` (the ``[vertex]`` extra pulls in the
    google-auth pieces).
 3. Make sure ADC is available: ``gcloud auth application-default login`` locally,
-   or rely on the service-account identity inside Agent Engine / Cloud Run.
+   or rely on the service-account identity inside Agent Runtime / Cloud Run.
 4. Instantiate ``ClaudeVertexModel(model="claude-...")`` and pass it as the
    ``model=`` of an ADK ``Agent``.
 """

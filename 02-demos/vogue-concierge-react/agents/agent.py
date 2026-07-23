@@ -40,7 +40,7 @@ use the cleaner team structure.
 
 WHERE THIS RUNS
 ---------------
-``root_agent`` is the entry point Vertex AI Agent Engine (the agent runtime)
+``root_agent`` is the entry point Agent Runtime (the agent runtime)
 loads and serves. ``deploy_agent_engine.py`` packages this module + data and
 deploys it. Locally you can also run ``adk web agents`` to chat with it.
 """
@@ -171,6 +171,6 @@ def create_agent() -> Agent:
     return orchestrator
 
 
-# Vertex AI Agent Engine and ``adk web`` both look for a module-level
+# Agent Runtime and ``adk web`` both look for a module-level
 # ``root_agent``. This is the single entry point to the whole team.
 root_agent = create_agent()

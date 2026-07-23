@@ -15,7 +15,7 @@
 
 # Vogue Concierge — deploy the React UI + FastAPI server to Cloud Run.
 #
-# This service serves the Next.js frontend and relays chat to Agent Engine. The
+# This service serves the Next.js frontend and relays chat to Agent Runtime. The
 # agents themselves are deployed separately with `python deploy_agent_engine.py`,
 # which prints the AGENT_ENGINE_ID you pass in below.
 #

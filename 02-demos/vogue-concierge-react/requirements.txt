@@ -1,5 +1,5 @@
 # Vogue Concierge — Python dependencies
-# Pinned for compatibility with google-adk + Vertex AI Agent Engine.
+# Pinned for compatibility with google-adk + Agent Runtime.
 
 # === Core ADK + Vertex AI ===
 google-adk>=1.2.0
@@ -22,7 +22,7 @@ google-cloud-storage>=2.18.0
 # === MCP Toolbox (BigQuery tools for the Inventory Specialist) ===
 toolbox-core>=0.1.0
 
-# === Agent Engine deployment deps ===
+# === Agent Runtime deployment deps ===
 pydantic>=2.0.0
 cloudpickle>=3.0.0
 

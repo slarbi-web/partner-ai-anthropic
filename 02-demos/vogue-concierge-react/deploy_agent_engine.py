@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Deploy Vogue Concierge to Vertex AI Agent Engine (the agent runtime).
+"""Deploy Vogue Concierge to Agent Runtime (the agent runtime).
 
 WHAT THIS DOES
 --------------
 Packages the ``agents/`` team + the ``data/`` catalog and uploads it to Vertex AI
-Agent Engine, which then hosts and serves the multi-agent system for you (no
+Agent Runtime, which then hosts and serves the multi-agent system for you (no
 servers to run). The FastAPI app (``app.py``) and the A2A bridge both call this
 deployed engine via ``stream_query``.
 
@@ -73,11 +73,11 @@ from agents.agent import create_agent
 
 agent = create_agent()
 
-# AdkApp wraps the ADK agent so Agent Engine can serve it. Tracing on gives you
+# AdkApp wraps the ADK agent so Agent Runtime can serve it. Tracing on gives you
 # per-turn spans in Cloud Trace, which pairs nicely with the A2A timeline view.
 app = reasoning_engines.AdkApp(agent=agent, enable_tracing=True)
 
-# Runtime dependencies installed inside the Agent Engine container. This must
+# Runtime dependencies installed inside the Agent Runtime container. This must
 # include anthropic[vertex] so ClaudeVertexModel can reach Claude on Agent Platform, and
 # google-cloud-bigquery so the place_order tool can write orders.
 REQUIREMENTS = [
@@ -89,7 +89,7 @@ REQUIREMENTS = [
     "google-cloud-storage>=3.0.0",
 ]
 # Environment for the deployed agents. No API key — Claude on Agent Platform uses the
-# Agent Engine service account's ADC. Override model ids / regions here if your
+# Agent Runtime service account's ADC. Override model ids / regions here if your
 # Model Garden uses different ones.
 ENV_VARS = {
     "VERTEXAI_PROJECT": PROJECT_ID,
@@ -114,7 +114,7 @@ EXISTING_ID = os.environ.get("AGENT_ENGINE_ID", "").strip()
 
 if EXISTING_ID:
     resource = f"projects/{PROJECT_NUMBER}/locations/{LOCATION}/reasoningEngines/{EXISTING_ID}"
-    print(f"Updating existing Agent Engine {EXISTING_ID} in place...")
+    print(f"Updating existing Agent Runtime {EXISTING_ID} in place...")
     remote_app = agent_engines.update(
         resource_name=resource,
         agent_engine=app,
@@ -123,7 +123,7 @@ if EXISTING_ID:
         extra_packages=EXTRA_PACKAGES,
     )
 else:
-    print("Creating a new Agent Engine...")
+    print("Creating a new Agent Runtime...")
     remote_app = agent_engines.create(
         agent_engine=app,
         requirements=REQUIREMENTS,
@@ -133,9 +133,9 @@ else:
 
 agent_engine_id = remote_app.gca_resource.name.split("/")[-1]
 print(f"\n{'=' * 60}")
-print("Agent Engine deployed.")
+print("Agent Runtime deployed.")
 print(f"Resource:        {remote_app.gca_resource.name}")
-print(f"Agent Engine ID: {agent_engine_id}")
+print(f"Agent Runtime ID: {agent_engine_id}")
 print(f"{'=' * 60}")
 # Machine-readable line — bootstrap.sh greps for '^AGENT_ENGINE_ID='.
 print(f"AGENT_ENGINE_ID={agent_engine_id}")

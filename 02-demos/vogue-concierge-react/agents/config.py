@@ -35,7 +35,7 @@ import os
 
 
 # --- GCP project / regions -------------------------------------------------
-# The project that owns Agent Engine, BigQuery, GCS, and the RAG corpus.
+# The project that owns Agent Runtime, BigQuery, GCS, and the RAG corpus.
 # Required — set VERTEXAI_PROJECT so nothing ever runs against the wrong project.
 PROJECT_ID = os.environ.get("VERTEXAI_PROJECT")
 if not PROJECT_ID:
@@ -44,7 +44,7 @@ if not PROJECT_ID:
         "it to your GCP project id. See the README 'Setup' section."
     )
 
-# Region for Agent Engine / BigQuery / Cloud Run.
+# Region for Agent Runtime / BigQuery / Cloud Run.
 REGION = "us-central1"
 
 # Region that actually SERVES Claude on Agent Platform. Claude availability AND quota are

@@ -25,7 +25,7 @@
 # clean and your real project id is never written back into the repo.
 #
 # NOTE: --allow-unauthenticated makes the tools reachable by the Google-managed
-# Agent Engine runtime without extra IAM wiring, which is fine for a demo/
+# Agent Runtime runtime without extra IAM wiring, which is fine for a demo/
 # workshop. For production, front the toolbox with authenticated invocation.
 # [GAP — needs auth for production]
 

@@ -1,11 +1,11 @@
 # Vogue Concierge — AI Boutique (Claude on Agent Platform, React edition)
 
 An elite AI fashion concierge built with **Claude models on Agent Platform**,
-**Google ADK**, and **Vertex AI Agent Engine**, fronted by a **React**
+**Google ADK**, and **Agent Runtime**, fronted by a **React**
 storefront.
 
 This is an Anthropic + Google "better together" build: Claude does the reasoning,
-Google Cloud provides the runtime (Agent Engine), retrieval (Vertex RAG), and
+Google Cloud provides the runtime (Agent Runtime), retrieval (Vertex RAG), and
 structured data (BigQuery).
 
 > **This repo is the React-only build.** It serves the concierge through a React
@@ -40,7 +40,7 @@ Prefer to run the steps yourself? See [Manual setup](#manual-setup) below.
 > For a detailed technical deep dive into the multi-agent design, tools, and data flows, see [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md).
 
 ```
-React UI ──FastAPI (Cloud Run)──▶  Vertex AI Agent Engine
+React UI ──FastAPI (Cloud Run)──▶  Agent Runtime
                                         │
                                 Orchestrator  (Claude Sonnet 4.6)
                                    ├─ Style Advisor       (Claude Opus 4.8)
@@ -51,7 +51,7 @@ React UI ──FastAPI (Cloud Run)──▶  Vertex AI Agent Engine
 ```
 
 The **React UI** talks to `app.py` (REST/SSE) on Cloud Run, which relays to the
-agent team on Agent Engine.
+agent team on Agent Runtime.
 
 ## The right model for the right agent
 
@@ -107,7 +107,7 @@ gcloud services enable \
 - `gcloud auth application-default login` (ADC — no API keys anywhere).
 - The identity running setup/deploy needs, at minimum: **Vertex AI User**,
   **Storage Admin**, **BigQuery Admin**, **Cloud Run Admin**, **Cloud Build
-  Editor**, and **Service Account User**. The Agent Engine / Cloud Run runtime
+  Editor**, and **Service Account User**. The Agent Runtime / Cloud Run runtime
   service account (`<project-number>-compute@developer.gserviceaccount.com`)
   needs **Vertex AI User** and **BigQuery Data Editor/User**.
 
@@ -147,7 +147,7 @@ set -a; source .env; set +a
 # 4. (Optional) run the agents locally with the ADK dev UI
 adk web agents
 
-# 5. Deploy the agent team to Agent Engine (needs RAG_CORPUS_RESOURCE + TOOLBOX_URL)
+# 5. Deploy the agent team to Agent Runtime (needs RAG_CORPUS_RESOURCE + TOOLBOX_URL)
 python deploy_agent_engine.py       # PRINTS AGENT_ENGINE_ID=<id>
 #   -> set AGENT_ENGINE_ID in .env, then re-export
 set -a; source .env; set +a
@@ -172,14 +172,14 @@ storefront.
 - **`agents/prompt.py`** — one system prompt per agent.
 - **`checkout.py`** — the real BigQuery checkout (loyalty discount → simulated
   payment → write order → credit points), run on the Cloud Run layer because the
-  Agent Engine sandbox can't reach BigQuery (the "signal/execute" pattern).
-- **`app.py`** — FastAPI server for the React UI; relays chat to Agent Engine.
+  Agent Runtime sandbox can't reach BigQuery (the "signal/execute" pattern).
+- **`app.py`** — FastAPI server for the React UI; relays chat to Agent Runtime.
 
 ## Project structure
 
 ```
 vogue-concierge/
-├── agents/                  # ADK agent team (runs on Agent Engine)
+├── agents/                  # ADK agent team (runs on Agent Runtime)
 │   ├── claude_model.py      # ClaudeVertexModel — Claude-on-Vertex ADK adapter
 │   ├── agent.py             # orchestrator + specialists (AgentTool)
 │   ├── config.py            # model-per-agent mapping + data config

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Trend Search Tool — works locally and in Agent Engine"""
+"""Trend Search Tool — works locally and in Agent Runtime"""
 
 import os
 from typing import Optional

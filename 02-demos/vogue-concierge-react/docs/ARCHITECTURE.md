@@ -17,7 +17,7 @@ This document provides a comprehensive technical overview of the **Vogue Concier
 Vogue Concierge is an enterprise AI luxury boutique concierge platform. The application combines:
 * **Frontend UI:** A Next.js / React storefront (`/ui`).
 * **FastAPI Backend Relay:** A Python FastAPI server (`app.py`) running on Google Cloud Run that handles REST/SSE chat streaming, user session management, and transactional database actions.
-* **Agent Runtime:** A multi-agent ecosystem hosted on **Vertex AI Agent Engine** using **Google Agent Development Kit (ADK)** and the official Anthropic SDK (`anthropic[vertex]`).
+* **Agent Runtime:** A multi-agent ecosystem hosted on **Agent Runtime** using **Google Agent Development Kit (ADK)** and the official Anthropic SDK (`anthropic[vertex]`).
 * **Data Layer:** A dual data architecture separating unstructured semantic search (**Vertex AI RAG Engine**) from structured database transactions (**Google BigQuery**).
 
 ---
@@ -32,7 +32,7 @@ The system utilizes a **Hub-and-Spoke Orchestrator** pattern:
         ▼ (REST / SSE)
  [ FastAPI Relay ]
         │
-        ▼ (Agent Engine Event Stream)
+        ▼ (Agent Runtime Event Stream)
  [ Lead Orchestrator (Sonnet 4.6) ]
         │
         ├─────── Tool_call (Sequential) ───────┐
@@ -101,5 +101,5 @@ The architecture strictly delineates unstructured vector search from structured 
 * **Access:** Used by `inventory_specialist` to execute parameterized SQL lookups against BigQuery `inventory` and `loyalty_program` tables.
 
 ### 3. Signal / Execute Pattern (`checkout.py`)
-* **Purpose:** Executes transactional orders and account updates outside the Agent Engine sandbox.
-* **Access:** Because the Agent Engine runtime sandbox cannot connect directly to BigQuery, tools like `place_order`, `check_stock`, and `check_loyalty` emit **signals** in the event stream. The FastAPI relay server on Cloud Run intercepts these events and executes real BigQuery queries via `checkout.py`.
+* **Purpose:** Executes transactional orders and account updates outside the Agent Runtime sandbox.
+* **Access:** Because the Agent Runtime runtime sandbox cannot connect directly to BigQuery, tools like `place_order`, `check_stock`, and `check_loyalty` emit **signals** in the event stream. The FastAPI relay server on Cloud Run intercepts these events and executes real BigQuery queries via `checkout.py`.

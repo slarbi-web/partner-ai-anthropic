@@ -17,11 +17,11 @@
 ROLE
 ----
 This is the web backend for the boutique's own React UI. It does NOT run the
-agents itself — the agent team runs on Vertex AI Agent Engine (the agent
+agents itself — the agent team runs on Agent Runtime (the agent
 runtime). This server simply:
 
   * serves the built Next.js frontend and a few catalog REST endpoints, and
-  * relays chat messages to the deployed Agent Engine via ``stream_query``.
+  * relays chat messages to the deployed Agent Runtime via ``stream_query``.
 
 THIS IS *NOT* A2A — IT'S A PLAIN REST/SSE API (important distinction)
 --------------------------------------------------------------------
@@ -36,7 +36,7 @@ protocols:
     standard JSON-RPC 2.0 protocol, with AgentCard discovery and A2UI cards.
 
 Rule of thumb: you reach for A2A precisely when the caller is *not* your own UI.
-Both doorways relay to the one agent on Agent Engine and run the SAME real-BigQuery
+Both doorways relay to the one agent on Agent Runtime and run the SAME real-BigQuery
 checkout/loyalty interception here on Cloud Run — only the protocol differs.
 
 WHAT CHANGED WITH THE MOVE TO CLAUDE
@@ -97,17 +97,17 @@ if CATALOG_PATH.exists():
 
 UI_DIR = Path(__file__).parent / "ui" / "out"
 
-# Agent Engine handle, connected on startup.
+# Agent Runtime handle, connected on startup.
 remote_app = None
 
-# Light retry: Agent Engine can occasionally return an empty first event while a
+# Light retry: Agent Runtime can occasionally return an empty first event while a
 # session warms up. We retry a few times with a short backoff before giving up.
 MAX_RETRIES = 3
 RETRY_DELAYS = [2, 4, 6]
 
 
 def extract_text_from_events(events) -> str:
-    """Pull the final assistant text out of an Agent Engine event stream."""
+    """Pull the final assistant text out of an Agent Runtime event stream."""
     final_response = ""
     for event in events:
         if isinstance(event, dict):
@@ -208,7 +208,7 @@ async def setup():
         remote_app = client.agent_engines.get(name=AGENT_ENGINE_RESOURCE)
         print(f"Connected to Agent Engine: {AGENT_ENGINE_ID}")
     except Exception as e:
-        print(f"ERROR connecting to Agent Engine: {e}")
+        print(f"ERROR connecting to Agent Runtime: {e}")
 
 
 @app.get("/health")
@@ -238,18 +238,18 @@ async def get_sample_prompts():
 
 @app.post("/api/chat")
 async def chat(request: Request):
-    """Relay a chat turn to Agent Engine and return the reply + product cards."""
+    """Relay a chat turn to Agent Runtime and return the reply + product cards."""
     body = await request.json()
     messages = body.get("messages", [])
     user_id = body.get("user_id", "web_user")
     session_id = body.get("session_id", None)
 
     if not messages or not remote_app:
-        raise HTTPException(status_code=400, detail="No messages or Agent Engine not connected")
+        raise HTTPException(status_code=400, detail="No messages or Agent Runtime not connected")
 
     latest_message = messages[-1]["content"]
 
-    # One Agent Engine session per browser conversation, so context carries over.
+    # One Agent Runtime session per browser conversation, so context carries over.
     if not session_id:
         session = remote_app.create_session(user_id=user_id)
         session_id = session["id"]
@@ -315,7 +315,7 @@ async def chat_stream(request: Request):
     user_id = body.get("user_id", "web_user")
     session_id = body.get("session_id", None)
     if not messages or not remote_app:
-        raise HTTPException(status_code=400, detail="No messages or Agent Engine not connected")
+        raise HTTPException(status_code=400, detail="No messages or Agent Runtime not connected")
     latest_message = messages[-1]["content"]
     if not session_id:
         session = remote_app.create_session(user_id=user_id)

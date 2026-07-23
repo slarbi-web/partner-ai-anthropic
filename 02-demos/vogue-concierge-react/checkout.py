@@ -16,14 +16,14 @@
 
 WHY THIS LIVES HERE AND NOT IN THE AGENT
 ----------------------------------------
-The agents run on Vertex AI Agent Engine, whose sandbox can reach Vertex AI
+The agents run on Agent Runtime, whose sandbox can reach Vertex AI
 (Claude, RAG) but NOT BigQuery or the MCP Toolbox. So the agent can't persist an
 order itself. Instead:
 
   1. In the agent, the `place_order` tool just SIGNALS intent and returns the
      order parameters (sku, size, customer_id, quantity).
   2. The Cloud Run caller (app.py for the React UI, a2a/server.py for Gemini
-     Enterprise) sees that tool call in the Agent Engine event stream, and calls
+     Enterprise) sees that tool call in the Agent Runtime event stream, and calls
      `finalize_order(...)` HERE — Cloud Run can reach BigQuery, so this is where
      the real work happens: read loyalty, apply the discount, simulate payment,
      award reward points, and write the order to BigQuery.
@@ -113,7 +113,7 @@ def _money(x) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Real stock (BigQuery `inventory`). The agent on Agent Engine can't reach
+# Real stock (BigQuery `inventory`). The agent on Agent Runtime can't reach
 # BigQuery, so live stock — like loyalty and checkout — runs HERE on Cloud Run.
 # ---------------------------------------------------------------------------
 _SIZE_RANK = {s: i for i, s in enumerate(
@@ -336,7 +336,7 @@ def quote_order(items=None, customer_id: str = None, sku: str = None, size: str 
 
 
 def find_tool_call(events, name: str):
-    """Scan an Agent Engine event stream for a top-level tool call by name and
+    """Scan an Agent Runtime event stream for a top-level tool call by name and
     return its args dict, or None. Used by BOTH Cloud Run callers (the React UI's
     app.py and the A2A bridge) to detect the agent's `place_order` / `check_loyalty`
     signals and run the real BigQuery action here, where BigQuery is reachable."""
