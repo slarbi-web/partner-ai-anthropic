@@ -307,15 +307,21 @@ def quote_order(items=None, customer_id: str = None, sku: str = None, size: str 
         elif avail is not None and avail < 5:
             low_stock.append((li, avail))
 
+    # Every block is a heading paragraph followed by its own tight bullet list. The
+    # headings are structural, not decorative: two bullet lists separated by nothing
+    # but a blank line are ONE list as far as Markdown is concerned, and a list with
+    # a blank line inside it is "loose", so the renderer wraps every bullet in a
+    # paragraph and the whole summary gains ragged spacing. A paragraph between them
+    # closes the first list. Consecutive "**Label:** value" lines have the mirror
+    # problem — they collapse into a single run-on paragraph — so those are bullets
+    # too. finalize_order and get_order are built the same way, so the three
+    # screens line up with each other.
     lines = ["Here's your order summary — please review before I take payment:", ""]
-    if len(line_items) == 1:
-        li = line_items[0]
-        lines.append(f"**{li['name']}** ({li['sku']}) · Size {li['size']} · Qty {li['quantity']}")
-    else:
-        lines.append(f"**Your items ({len(line_items)})**")
-        for li in line_items:
-            lines.append(f"- {li['name']} ({li['sku']}) · Size {li['size']} · Qty {li['quantity']} — {_money(li['line_total'])}")
+    lines.append(f"**Your items ({len(line_items)})**" if len(line_items) > 1 else "**Item**")
+    for li in line_items:
+        lines.append(f"- {li['name']} ({li['sku']}) · Size {li['size']} · Qty {li['quantity']} — {_money(li['line_total'])}")
     lines.append("")
+    lines.append("**Price**")
     lines.append(f"- Subtotal: {_money(subtotal)}")
     if discount_percent:
         lines.append(f"- {tier} loyalty discount ({discount_percent}%): −{_money(discount_amount)}")
@@ -458,19 +464,25 @@ def get_order(order_id: str) -> dict:
     lines = [
         f"Here are the details for order **{oid}**:",
         "",
-        f"**Placed:** {placed_on}  ·  **Status:** {str(r0['status']).title()}",
-        f"**Payment:** {str(r0['payment_status']).title()} to {MOCK_CARD}  ·  ref {r0['payment_id']}",
+        f"- **Placed:** {placed_on}  ·  **Status:** {str(r0['status']).title()}",
+        f"- **Payment:** {str(r0['payment_status']).title()} to {MOCK_CARD}  ·  ref {r0['payment_id']}",
     ]
     if r0["customer_id"]:
-        lines.append(f"**Member:** {r0['customer_id']}" + (f" ({r0['loyalty_tier']})" if r0["loyalty_tier"] else ""))
+        lines.append(f"- **Member:** {r0['customer_id']}" + (f" ({r0['loyalty_tier']})" if r0["loyalty_tier"] else ""))
     lines.append("")
     lines.append("**Items**")
     for r in rows:
-        lines.append(f"- {r['product_name']} ({r['sku']}) · Size {r['size']} · Qty {r['quantity']} — {_money(float(r['total'] or 0))}")
+        # The line price is the pre-discount subtotal, so the items add up to the
+        # Subtotal below and the discount is stated once. finalize_order prints the
+        # same figures, so a receipt and a later lookup of that order agree.
+        lines.append(f"- {r['product_name']} ({r['sku']}) · Size {r['size']} · Qty {r['quantity']} — {_money(float(r['subtotal'] or 0))}")
     lines.append("")
+    lines.append("**Price**")
     if discount_total:
-        lines.append(f"**Subtotal:** {_money(subtotal_total)}  ·  **Discount:** −{_money(discount_total)}")
-    lines.append(f"**Total:** {_money(order_total)}")
+        lines.append(f"- Subtotal: {_money(subtotal_total)}")
+        lines.append(f"- Discount: −{_money(discount_total)}")
+    lines.append(f"- **Total: {_money(order_total)}**")
+    lines.append("")
     lines.append(f"**Estimated delivery:** {r0['estimated_delivery']}")
     return {"ok": True, "found": True, "order_id": oid, "total": order_total,
             "products": products, "text": "\n".join(lines)}
@@ -684,8 +696,8 @@ def finalize_order(items=None, customer_id: str = None, sku: str = None, size: s
     lines = [
         header,
         "",
-        f"**Order number:** {order_id}",
-        f"**Payment:** ✓ Charged {_money(order_total)} to {MOCK_CARD}  ·  ref {payment_id}",
+        f"- **Order number:** {order_id}",
+        f"- **Payment:** ✓ Charged {_money(order_total)} to {MOCK_CARD}  ·  ref {payment_id}",
         "",
         "**Your items**" if n > 1 else "**Item**",
     ]
@@ -705,11 +717,12 @@ def finalize_order(items=None, customer_id: str = None, sku: str = None, size: s
         lines.append("")
         lines.append(f"_(Note: I couldn't find {', '.join(unknown)}, so {'it was' if len(unknown) == 1 else 'they were'} not ordered.)_")
     lines.append("")
+    lines.append("**Rewards & delivery**")
     if loyalty_ok:
-        lines.append(f"**Rewards:** +{points_earned} points earned · new balance **{new_points_balance:,} points**")
+        lines.append(f"- +{points_earned} points earned · new balance **{new_points_balance:,} points**")
     else:
-        lines.append(f"**Rewards:** +{points_earned} points on this order. Join our loyalty program to start saving them!")
-    lines.append(f"**Estimated delivery:** {eta}")
+        lines.append(f"- +{points_earned} points on this order. Join our loyalty program to start saving them!")
+    lines.append(f"- Estimated delivery: {eta}")
     lines.append("")
     lines.append("Is there anything else I can help you with? — Vogue Concierge")
 
