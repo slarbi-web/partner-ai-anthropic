@@ -18,7 +18,7 @@
 #
 # Deploys the whole thing into YOUR Google Cloud project from a clean clone:
 #   preflight -> auth -> config -> enable APIs -> Model Garden gate -> IAM ->
-#   seed data (Imagen catalog, BigQuery, RAG) -> deploy toolbox -> agents ->
+#   seed data (catalog images, BigQuery, RAG) -> deploy toolbox -> agents ->
 #   React UI -> (A2A bridge, if this is the full build).
 #
 # Designed to run in Google Cloud Shell (or any machine with gcloud + python3).
@@ -29,7 +29,7 @@
 #   ./bootstrap.sh            # interactive
 #   ./bootstrap.sh --yes      # accept defaults / skip confirmations (best-effort)
 #
-# The one thing it cannot automate is enabling the Claude + Imagen models in
+# The one thing it cannot automate is enabling the Claude + image models in
 # Agent Platform Model Garden (a console click-through) and registering the A2A bridge
 # in Gemini Enterprise — it pauses and walks you through both.
 # =============================================================================
@@ -184,17 +184,17 @@ gcloud services enable \
   --project "$VERTEXAI_PROJECT"
 ok "APIs enabled"
 
-# --- 5. Model Garden + Imagen gate (manual) --------------------------------
-step "Enable the Claude + Imagen models (one-time, console)"
+# --- 5. Model Garden gate (manual) -----------------------------------------
+step "Enable the Claude + image models (one-time, console)"
 cat <<EOF
     Vogue Concierge needs these models enabled in Agent Platform Model Garden for
     project ${BOLD}${VERTEXAI_PROJECT}${RST}:
       • Claude Sonnet 5, Claude Opus 5, Claude Haiku 4.5
-      • Imagen 3 (imagen-3.0-generate-002) — used to generate the catalog images
+      • Gemini 2.5 Flash Image (gemini-2.5-flash-image) — generates the catalog images
     Open: ${BLU}https://console.cloud.google.com/vertex-ai/model-garden?project=${VERTEXAI_PROJECT}${RST}
     (Search each model, click "Enable" / accept terms. This can't be scripted.)
 EOF
-if ! confirm "Have you enabled the Claude models AND Imagen 3?"; then
+if ! confirm "Have you enabled the Claude models AND Gemini 2.5 Flash Image?"; then
   warn "Enable them in the console, then re-run ./bootstrap.sh (it will resume)."
   exit 0
 fi
@@ -250,9 +250,9 @@ fi
 
 # --- 10. seed the data plane -----------------------------------------------
 step "Building the data plane (catalog images, BigQuery, RAG)"
-warn "setup_catalog.py generates 30 images with Imagen 3 — this costs money and takes several minutes."
+warn "setup_catalog.py generates 30 images — this costs money and takes several minutes."
 if confirm "Run data setup now?"; then
-  info "→ catalog + Imagen images"
+  info "→ catalog + product images"
   "$PYTHON" scripts/setup_catalog.py
   info "→ BigQuery inventory + loyalty"
   "$PYTHON" scripts/setup_bigquery.py

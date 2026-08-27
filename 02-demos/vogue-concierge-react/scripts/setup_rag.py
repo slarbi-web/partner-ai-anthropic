@@ -126,16 +126,35 @@ def ingest_files(corpus):
         f"gs://{BUCKET_NAME}/rag/trend_report.md",
     ]
 
-    response = rag.import_files(
-        corpus_name=corpus.name,
-        paths=gcs_uris,
-        transformation_config=rag.TransformationConfig(
-            chunking_config=rag.ChunkingConfig(chunk_size=512, chunk_overlap=100),
-        ),
-    )
+    # import_files returns a long-running operation, and the service returns a
+    # transient 500 often enough that a single attempt is not good enough here:
+    # this is the last step of the data plane, so failing it throws away the
+    # images and BigQuery tables that bootstrap.sh just spent several minutes
+    # building. Retry with a linear backoff before giving up.
+    last_error = None
+    for attempt in range(1, 5):
+        try:
+            response = rag.import_files(
+                corpus_name=corpus.name,
+                paths=gcs_uris,
+                transformation_config=rag.TransformationConfig(
+                    chunking_config=rag.ChunkingConfig(chunk_size=512, chunk_overlap=100),
+                ),
+            )
+            print(f"RAG ingestion complete: {response.imported_rag_files_count} files imported")
+            return response
+        except Exception as e:  # noqa: BLE001 — any failure here is worth retrying
+            last_error = e
+            print(f"  import attempt {attempt}/4 failed ({type(e).__name__}: {e})")
+            if attempt < 4:
+                delay = 15 * attempt
+                print(f"  retrying in {delay}s…")
+                time.sleep(delay)
 
-    print(f"RAG ingestion complete: {response.imported_rag_files_count} files imported")
-    return response
+    raise RuntimeError(
+        "RAG ingestion failed after 4 attempts. The corpus was created and the "
+        f"source files are in GCS, so re-running this script will resume: {last_error}"
+    )
 
 
 def test_rag_query(corpus):

@@ -101,7 +101,7 @@ def vertex_model_path(model_id: str) -> str:
 # BigQuery dataset holding inventory + loyalty tables (queried via MCP Toolbox).
 BQ_DATASET = "vogue_concierge"
 
-# GCS bucket with the 30 Imagen-generated product images.
+# GCS bucket with the 30 generated product images.
 GCS_BUCKET = f"{PROJECT_ID}-vogue-concierge"
 
 # Agent Platform RAG corpus (catalog + trend report). Note it lives in its own region.

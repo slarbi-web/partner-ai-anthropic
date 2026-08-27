@@ -16,7 +16,7 @@ structured data (BigQuery).
 
 The fastest path is the interactive installer. It deploys the whole thing into
 **your own** Google Cloud project: it collects your config, enables APIs, seeds
-the data plane (Imagen catalog, BigQuery, RAG), and deploys the MCP Toolbox, the
+the data plane (catalog images, BigQuery, RAG), and deploys the MCP Toolbox, the
 agent team, and the React UI — capturing every generated id into `.env` as it goes.
 
 [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/Google-Cloud-AI/partner-ai-anthropic.git&cloudshell_git_branch=main&cloudshell_workspace=02-demos/vogue-concierge-react&cloudshell_tutorial=02-demos/vogue-concierge-react/README.md)
@@ -30,7 +30,7 @@ agent team, and the React UI — capturing every generated id into `.env` as it 
 The installer is **interactive and safe to re-run** — each step is idempotent, so
 if something fails (a missing model, a quota bump) you fix it and run it again to
 resume. The one thing it can't automate and will pause to walk you through is
-enabling the Claude + Imagen models in Agent Platform Model Garden.
+enabling the Claude + image models in Agent Platform Model Garden.
 
 Prefer to run the steps yourself? See [Manual setup](#manual-setup) below.
 
@@ -103,9 +103,10 @@ gcloud services enable \
   available capacity and is recommended; regional endpoints may lack Opus 5
   quota until you request an increase.
 
-**4. Imagen 3 (required)**
-- `scripts/setup_catalog.py` generates the 30 product images with **Imagen 3**
-  on Agent Platform. Imagen must be **enabled/allowlisted** for your project. Without
+**4. Gemini 2.5 Flash Image (required)**
+- `scripts/setup_catalog.py` generates the 30 product images with
+  **`gemini-2.5-flash-image`** on Agent Platform, which must be
+  **enabled/allowlisted** for your project. Without
   it, catalog setup will not complete — this is a hard requirement, not optional.
 
 **5. Authentication & IAM**
@@ -141,7 +142,7 @@ set -a; source .env; set +a
 python tests/test_connection.py
 
 # 2. Build the data plane (order matters)
-python scripts/setup_catalog.py     # Imagen images -> GCS, rewrites data/products.json
+python scripts/setup_catalog.py     # product images -> GCS, rewrites data/products.json
 python scripts/setup_bigquery.py    # inventory + loyalty tables from the catalog
 python scripts/setup_orders.py      # append-only orders table
 python scripts/setup_rag.py         # RAG corpus; PRINTS RAG_CORPUS_RESOURCE=<name>

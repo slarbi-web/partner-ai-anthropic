@@ -15,12 +15,12 @@
 """
 Setup Catalog — Vogue Concierge
 =================================
-Generates product images using Imagen 3 on Agent Platform and uploads
-everything to a NEW GCS bucket separate from V1.
+Generates product images on Agent Platform and uploads everything to a NEW
+GCS bucket separate from V1.
 
 Creates:
   - GCS bucket: your-gcp-project-id-vogue-concierge
-  - 30 product images via Imagen 3
+  - 30 product images
   - Updated products.json with image URLs
 
 Usage:
@@ -32,8 +32,16 @@ import os
 import time
 
 from google.cloud import storage
-import vertexai
-from vertexai.preview.vision_models import ImageGenerationModel
+from google import genai
+from google.genai import types
+
+# Image generation runs through Gemini rather than Imagen. The Imagen publisher
+# models (imagen-3.0-*, imagen-4.0-*, and the older imagegeneration@00x) no
+# longer resolve on the Vertex endpoint — `from_pretrained` returns 404 — and
+# `vertexai.preview.vision_models` is deprecated besides. `gemini-2.5-flash-image`
+# is served from the global endpoint and returns the image as inline data on the
+# response part.
+IMAGE_MODEL = "gemini-2.5-flash-image"
 
 PROJECT_ID = os.environ.get("VERTEXAI_PROJECT")
 if not PROJECT_ID:
@@ -41,7 +49,6 @@ if not PROJECT_ID:
         "VERTEXAI_PROJECT is not set. Export it (or copy .env.example to .env) with your "
         "GCP project id before running setup. See the README 'Setup' section."
     )
-REGION = "us-central1"
 BUCKET_NAME = f"{PROJECT_ID}-vogue-concierge"
 CATALOG_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "products.json")
 
@@ -73,10 +80,46 @@ def create_bucket():
     return bucket
 
 
+def _generate_one(client: "genai.Client", prompt: str) -> bytes:
+    """Return PNG bytes for `prompt`, or b"" if the model returned no image.
+
+    The response can legitimately come back without an image part — a safety
+    block returns text instead — so the caller treats empty bytes as "skip this
+    product" rather than as a hard failure.
+    """
+    response = client.models.generate_content(
+        model=IMAGE_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["IMAGE"],
+            image_config=types.ImageConfig(aspect_ratio="3:4"),
+        ),
+    )
+    for candidate in response.candidates or []:
+        for part in candidate.content.parts or []:
+            if getattr(part, "inline_data", None) and part.inline_data.data:
+                return part.inline_data.data
+    return b""
+
+
 def generate_images(catalog: list):
-    """Generate product images using Imagen 3."""
-    vertexai.init(project=PROJECT_ID, location=REGION)
-    model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-002")
+    """Generate product images and upload them to the assets bucket.
+
+    Image generation is best-effort: a product whose image fails keeps an empty
+    `image_url` and the catalog is still written. Setup is the first step of
+    bootstrap.sh, and losing one picture is not a reason to abort a deploy.
+    """
+    # Constructing the client is inside the same error handling as generation:
+    # if the image model is unavailable in this project, every product simply
+    # ends up without a picture instead of killing bootstrap on step 1.
+    try:
+        genai_client = genai.Client(vertexai=True, project=PROJECT_ID, location="global")
+    except Exception as e:
+        print(f"WARNING: could not initialise the image model ({e}).")
+        print("         Continuing without product images.")
+        for product in catalog:
+            product["image_url"] = ""
+        return catalog
 
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(BUCKET_NAME)
@@ -97,28 +140,12 @@ def generate_images(catalog: list):
 
         print(f"  [{i+1}/30] Generating image for {sku}: {product['name']}")
         try:
-            response = model.generate_images(
-                prompt=product["image_prompt"],
-                number_of_images=1,
-                aspect_ratio="3:4",
-                safety_filter_level="block_few",
-                person_generation="dont_allow",
-            )
-
-            if response.images:
-                image = response.images[0]
-                # Save locally first
-                local_path = f"/tmp/{sku}.png"
-                image.save(local_path)
-
-                # Upload to GCS
-                blob.upload_from_filename(local_path, content_type="image/png")
+            png = _generate_one(genai_client, product["image_prompt"])
+            if png:
+                blob.upload_from_string(png, content_type="image/png")
                 print(f"           Uploaded to {image_url}")
-
-                # Clean up local file
-                os.remove(local_path)
             else:
-                print(f"           WARNING: No image generated for {sku}")
+                print(f"           WARNING: No image returned for {sku}")
                 image_url = ""
 
         except Exception as e:
@@ -171,7 +198,7 @@ def main():
     create_bucket()
 
     # Generate images
-    print(f"\nStep 2: Generating {len(catalog)} product images with Imagen 3...")
+    print(f"\nStep 2: Generating {len(catalog)} product images...")
     updated_catalog = generate_images(catalog)
 
     # Save updated catalog locally
