@@ -91,6 +91,23 @@ def _lookup_loyalty(customer_id: str):
 
 
 def _write_order(row: dict) -> bool:
+    """Append one order line to BigQuery. True only if the row was accepted.
+
+    This is a streaming insert, unlike the seed data in `scripts/setup_bigquery.py`,
+    which uses a load job. The difference is deliberate: a streaming insert is a
+    single synchronous call that returns in a few hundred milliseconds, whereas a
+    load job is a queued BigQuery job that takes seconds — and this one runs while
+    the customer waits for their receipt.
+
+    The trade-off is that rows written this way sit in the streaming buffer for
+    ~30 minutes, during which UPDATE/DELETE/MERGE cannot touch them
+    (https://docs.cloud.google.com/bigquery/docs/data-manipulation-language#limitations).
+    That costs nothing today because `orders` is only ever read after it is written.
+    It would matter the moment you add the cancel/refund paths a real payment
+    integration needs (see the README's "Payment is simulated" section): those are
+    DML, so they would silently fail on a just-placed order. Move this to
+    `load_table_from_json` if you go there.
+    """
     from google.cloud import bigquery
 
     client = bigquery.Client(project=PROJECT_ID)
