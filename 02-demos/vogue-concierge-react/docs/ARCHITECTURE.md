@@ -1,4 +1,4 @@
-<!-- Copyright 2026 slarbi-web -->
+<!-- Copyright 2026 The "Anthropic on Google Cloud" Authors -->
 
 # Vogue Concierge — System Architecture & Multi-Agent Design
 

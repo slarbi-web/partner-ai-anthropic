@@ -255,4 +255,5 @@ vogue-concierge/
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE). Copyright 2026 slarbi-web.
+Apache License 2.0 — see the [LICENSE](../../LICENSE) at the repository root.
+Copyright 2026 The "Anthropic on Google Cloud" Authors.
