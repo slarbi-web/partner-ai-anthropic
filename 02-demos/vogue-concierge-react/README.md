@@ -211,6 +211,35 @@ storefront.
 >
 > The surest cleanup is to delete the whole project, if you made one for this.
 
+## Payment is simulated — you have to build that part
+
+Checkout writes a real order to BigQuery, applies the real loyalty discount and
+credits real points. **The payment step is the one thing that is faked.** There is
+no payment service provider wired in: `checkout.py` shows a stand-in card
+(`MOCK_CARD = "Visa •••• 4242"`, Stripe's canonical test number) on the quote and
+the receipt, mints a `payment_id`, and writes `payment_status = "paid"`
+unconditionally. Nobody is ever asked for card details, nothing is authorised, and
+no money moves. Every order "succeeds".
+
+To take this to production, replace that step with a real PSP — Stripe, Adyen,
+Checkout.com, Google Pay, whichever you use — and note that *where* you collect the
+card matters as much as the integration itself:
+
+* **Collect the card in the browser, with the provider's hosted fields or SDK**, so
+  the number is tokenised client-side and never reaches this service. Do **not**
+  have the customer type a card number into the chat box: that text is persisted in
+  the Agent Runtime session history, passed to the model, and can land in Cloud Run
+  request logs.
+* **Send only the token** to the backend, authorise against it, and write the order
+  row *from the authorisation result* rather than ahead of it — today `place_order`
+  assumes success.
+* **Persist only the brand and last four digits** plus the provider's charge id.
+  Never store the full number, and add the decline, retry and refund paths the demo
+  has no concept of.
+
+Keeping the card out of your own servers is also what keeps your PCI DSS obligation
+at SAQ A instead of pulling this whole deployment into scope.
+
 ## How it's built
 
 - **`agents/agent.py`** — the team: an orchestrator that delegates to specialists
@@ -227,7 +256,8 @@ storefront.
   them through `ToolboxToolset`, authenticating with a Google-signed ID token,
   so the queries live outside the model and the service stays private.
 - **`checkout.py`** — the BigQuery **writes** (loyalty discount → simulated
-  payment → write order → credit points), run on the Cloud Run layer. The agent
+  payment, see the section above → write order → credit points), run on the Cloud
+  Run layer. The agent
   only *signals* intent; this is the "signal/execute" pattern. It's a deliberate
   split — money-moving logic stays off the model, and the storefront needs the
   result to render a confirmation — not a reachability limit.

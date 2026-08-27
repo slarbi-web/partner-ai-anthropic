@@ -218,8 +218,21 @@ def stock_status(sku: str) -> dict:
             "products": ([product] if product else []), "text": "\n".join(lines)}
 
 
-# A realistic-looking mock card for the demo. Payment is simulated — no real card
-# is ever entered or charged; this just makes the receipt feel authentic.
+# A stand-in card so the quote and the receipt read like a real checkout. There is
+# NO payment integration here: nothing is tokenised, authorised or charged, and the
+# customer is never asked for card details. `finalize_order` mints a `payment_id`
+# and writes `payment_status = "paid"` unconditionally, so the order always
+# "succeeds".
+#
+# Going to production means replacing that simulated step with a real PSP (Stripe,
+# Adyen, Checkout.com, Google Pay …). Collect the card in the browser with the
+# provider's hosted fields or SDK so the number is tokenised client-side and never
+# reaches this service — that keeps the PAN out of the Agent Runtime session
+# transcript, the Cloud Run logs and BigQuery, and keeps your own PCI DSS scope to
+# SAQ A. Send only the resulting token here, authorise against it, and persist just
+# the brand and last four digits alongside the provider's charge id. The order row
+# should then be written from the authorisation result rather than ahead of it, with
+# declines and refunds handled explicitly.
 MOCK_CARD = "Visa •••• 4242"
 
 
