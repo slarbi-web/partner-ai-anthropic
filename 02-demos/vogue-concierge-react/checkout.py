@@ -16,17 +16,25 @@
 
 WHY THIS LIVES HERE AND NOT IN THE AGENT
 ----------------------------------------
-The agents run on Agent Runtime, whose sandbox can reach Agent Platform
-(Claude, RAG) but NOT BigQuery or the MCP Toolbox. So the agent can't persist an
-order itself. Instead:
+Not because the agent can't reach BigQuery — it can. Deployed agents run as the
+Agent Runtime service agent and reach whatever that identity is granted, which
+is exactly how the Inventory specialist reads inventory and loyalty through the
+MCP Toolbox. The reads live in the agent; the WRITES live here, deliberately:
 
-  1. In the agent, the `place_order` tool just SIGNALS intent and returns the
-     order parameters (sku, size, customer_id, quantity).
+  * Money-moving logic stays off the model. Discount maths, payment, and the
+    order row are ordinary server code that runs the same way every time, and no
+    prompt can talk them into a different price.
+  * The storefront needs the outcome. The UI renders an order confirmation, so
+    the Cloud Run layer has to see the result anyway.
+
+So the flow is:
+
+  1. In the agent, the `place_order` tool SIGNALS intent and returns the order
+     parameters (sku, size, customer_id, quantity).
   2. The Cloud Run caller (app.py for the React UI, a2a/server.py for Gemini
-     Enterprise) sees that tool call in the Agent Runtime event stream, and calls
-     `finalize_order(...)` HERE — Cloud Run can reach BigQuery, so this is where
-     the real work happens: read loyalty, apply the discount, simulate payment,
-     award reward points, and write the order to BigQuery.
+     Enterprise) sees that tool call in the Agent Runtime event stream and calls
+     `finalize_order(...)` HERE, which does the real work: read loyalty, apply
+     the discount, simulate payment, award reward points, and write the order.
 
 `finalize_order` returns both the structured result and a ready-to-show
 confirmation string, so the caller can render it directly.
@@ -113,8 +121,9 @@ def _money(x) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Real stock (BigQuery `inventory`). The agent on Agent Runtime can't reach
-# BigQuery, so live stock — like loyalty and checkout — runs HERE on Cloud Run.
+# Real stock (BigQuery `inventory`). The Inventory specialist reads this table
+# through the MCP Toolbox for conversational questions; this copy backs the
+# checkout flow, so what the UI shows and what checkout validates against agree.
 # ---------------------------------------------------------------------------
 _SIZE_RANK = {s: i for i, s in enumerate(
     ["XS", "S", "S/M", "M", "L", "L/XL", "XL", "XXL", "One Size"]
@@ -355,8 +364,9 @@ def loyalty_status(customer_id: str) -> dict:
 
     This is the display counterpart to the discount/points that `finalize_order`
     applies — reading from the same `loyalty_program` table keeps what the customer
-    is *told* consistent with what they're actually *charged*. (The agent itself
-    can't reach BigQuery, so it only signals via the `check_loyalty` tool.)
+    is *told* consistent with what they're actually *charged*. (The agent signals
+    via the `check_loyalty` tool so the storefront can render the result; the
+    Inventory specialist can also read the same table through the MCP Toolbox.)
     """
     if not customer_id:
         return {"ok": False, "text": "I'd be glad to check your loyalty status — could you share your customer ID (for example CUST-1042)?"}

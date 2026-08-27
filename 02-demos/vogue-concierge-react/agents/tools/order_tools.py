@@ -15,12 +15,15 @@
 """BigQuery-backed SIGNAL tools for the agent (run on Agent Runtime).
 
 IMPORTANT — where the real work happens:
-The Agent Runtime sandbox can reach Agent Platform (Claude, RAG) but NOT BigQuery. So
-these tools do NOT touch BigQuery — they only validate input and SIGNAL intent by
-returning their parameters. The Cloud Run layer (app.py for the React UI,
-a2a/server.py for Gemini Enterprise) sees the tool call in the Agent Runtime event
-stream and runs the REAL BigQuery action there (`checkout.finalize_order` /
-`checkout.loyalty_status`), where BigQuery is reachable.
+These tools do NOT touch BigQuery. That is a design choice, not a limitation:
+deployed agents run as the Agent Runtime service agent and can reach BigQuery
+directly or through the MCP Toolbox (the Inventory specialist does exactly that).
+The transactional path is kept separate so the money-moving logic stays off the
+model and the storefront can render the outcome. These tools validate input and
+SIGNAL intent by returning their parameters; the Cloud Run layer (app.py for the
+React UI, a2a/server.py for Gemini Enterprise) sees the tool call in the Agent
+Runtime event stream and runs the REAL BigQuery action there
+(`checkout.finalize_order` / `checkout.loyalty_status`).
 
   * `place_order`   -> Cloud Run runs the real checkout (payment, order row, points)
   * `check_loyalty` -> Cloud Run reads the real loyalty tier / discount / points
@@ -145,11 +148,10 @@ async def check_stock(sku: str) -> dict:
     is in stock, or how many are left. You need a SKU — if you only have a product
     name, ask style_advisor to identify the exact SKU first, then call this.
 
-    The real stock lives in BigQuery, which this agent can't reach, so the
-    boutique's system finishes the lookup and shows the customer the live size/stock
-    table (kept consistent with what checkout will actually let them buy). After
-    calling this, simply let the customer know you're checking availability — do NOT
-    invent or state stock numbers yourself.
+    The boutique's system finishes this lookup and renders the live size/stock
+    table for the customer, kept consistent with what checkout will actually let
+    them buy. After calling this, simply let the customer know you're checking
+    availability — do NOT invent or state stock numbers yourself.
 
     Args:
         sku: The product SKU (e.g. "SKU-002").
@@ -172,9 +174,9 @@ async def get_order(order_id: str) -> dict:
     """Look up a previously placed order by its order number.
 
     Use this whenever the customer asks about an existing order — "what's in order
-    ORD-1234?", "show me my order", "where's my order", "order status". The order
-    details live in BigQuery, which this agent can't reach, so the boutique's system
-    finishes the lookup and shows the real order (items, totals, payment, status,
+    ORD-1234?", "show me my order", "where's my order", "order status". The
+    boutique's system finishes the lookup and renders the real order (items,
+    totals, payment, status,
     delivery). After calling this, simply let the customer know you're pulling it up
     — do NOT invent order contents yourself.
 
@@ -226,11 +228,10 @@ async def check_loyalty(customer_id: str) -> dict:
     loyalty tier is, or how many reward points they have — and they have given a
     customer ID.
 
-    The real loyalty data lives in BigQuery, which this agent can't reach, so the
-    boutique's system finishes the lookup and shows the customer their REAL tier,
-    discount, and points (kept consistent with what checkout charges). After calling
-    this, simply let the customer know you're pulling up their status — do NOT state
-    a tier, a discount percentage, or a points balance yourself.
+    The boutique's system finishes this lookup and renders the customer's REAL
+    tier, discount, and points, kept consistent with what checkout charges. After
+    calling this, simply let the customer know you're pulling up their status — do
+    NOT state a tier, a discount percentage, or a points balance yourself.
 
     Args:
         customer_id: The loyalty customer ID (e.g. "CUST-1042").

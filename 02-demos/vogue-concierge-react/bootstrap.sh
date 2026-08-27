@@ -189,7 +189,7 @@ step "Enable the Claude + Imagen models (one-time, console)"
 cat <<EOF
     Vogue Concierge needs these models enabled in Agent Platform Model Garden for
     project ${BOLD}${VERTEXAI_PROJECT}${RST}:
-      • Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
+      • Claude Sonnet 5, Claude Opus 5, Claude Haiku 4.5
       • Imagen 3 (imagen-3.0-generate-002) — used to generate the catalog images
     Open: ${BLU}https://console.cloud.google.com/vertex-ai/model-garden?project=${VERTEXAI_PROJECT}${RST}
     (Search each model, click "Enable" / accept terms. This can't be scripted.)
@@ -291,6 +291,23 @@ rm -f "$AE_LOG"
 [ -n "$AE_ID" ] || die "Could not capture AGENT_ENGINE_ID from deploy_agent_engine.py output."
 set_env AGENT_ENGINE_ID "$AE_ID"
 ok "AGENT_ENGINE_ID=${AE_ID}"
+
+# --- 12b. let the deployed agents call the MCP Toolbox ----------------------
+# The toolbox is deployed private, so the identity the agents run as needs
+# roles/run.invoker on it. deploy_toolbox.sh attempts this too, but on a fresh
+# project the Agent Runtime service agent does not exist until the deploy above
+# has run — so we repeat it here, where it is guaranteed to resolve.
+step "Authorising the agents to call the MCP Toolbox"
+ENGINE_SA="service-${PROJECT_NUMBER}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
+info "${ENGINE_SA}"
+if gcloud run services add-iam-policy-binding vogue-toolbox \
+     --region "$REGION" --project "$VERTEXAI_PROJECT" \
+     --member="serviceAccount:${ENGINE_SA}" \
+     --role="roles/run.invoker" --quiet >/dev/null 2>&1; then
+  ok "granted roles/run.invoker on vogue-toolbox"
+else
+  warn "could not grant roles/run.invoker on vogue-toolbox — the Inventory agent's BigQuery tools will fail until this is granted."
+fi
 
 # --- 13. deploy the React UI -----------------------------------------------
 step "Deploying the React UI to Cloud Run"

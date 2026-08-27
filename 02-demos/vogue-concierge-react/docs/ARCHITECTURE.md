@@ -33,12 +33,12 @@ The system utilizes a **Hub-and-Spoke Orchestrator** pattern:
  [ FastAPI Relay ]
         │
         ▼ (Agent Runtime Event Stream)
- [ Lead Orchestrator (Sonnet 4.6) ]
+ [ Lead Orchestrator (Sonnet 5) ]
         │
         ├─────── Tool_call (Sequential) ───────┐
         ▼                                       ▼
   Style Advisor                      Inventory & Pricing                  Returns & Care
-   (Opus 4.8)                            (Haiku 4.5)                       (Haiku 4.5)
+   (Opus 5)                            (Haiku 4.5)                       (Haiku 4.5)
 ```
 
 ### Key Orchestration Behaviors:
@@ -54,9 +54,9 @@ Each agent runs on the Claude model tier best optimized for its specific workloa
 
 | Agent Name | LLM Model Tier | Assigned Tools | Functional Responsibility |
 | :--- | :--- | :--- | :--- |
-| **Vogue Concierge**<br>*(Lead Orchestrator)* | `claude-sonnet-4-6` | • `AgentTool(Style)`<br>• `AgentTool(Inventory)`<br>• `AgentTool(Returns)`<br>• Signal Tools (`place_order`, `check_stock`, `check_loyalty`, `quote_order`, `get_order`, `enroll_loyalty`) | Primary entry point. Handles greetings, maintains concierge voice, delegates to specialists, and manages top-level checkout signals. |
-| **Style Advisor** | `claude-opus-4-8`<br>*(Effort: High)* | • `catalog_search`<br>• `trend_search` | Expert fashion stylist. Handles outfit composition, style trends, and personalized recommendations using high reasoning. |
-| **Inventory & Pricing** | `claude-haiku-4-5` | • `catalog_search`<br>• `check_inventory` (MCP)<br>• `get_loyalty_discount` (MCP) | Fast, deterministic lookups for product specifications, catalog pricing, and inventory. |
+| **Vogue Concierge**<br>*(Lead Orchestrator)* | `claude-sonnet-5` | • `AgentTool(Style)`<br>• `AgentTool(Inventory)`<br>• `AgentTool(Returns)`<br>• Signal Tools (`place_order`, `check_stock`, `check_loyalty`, `quote_order`, `get_order`, `enroll_loyalty`) | Primary entry point. Handles greetings, maintains concierge voice, delegates to specialists, and manages top-level checkout signals. |
+| **Style Advisor** | `claude-opus-5`<br>*(Effort: High)* | • `catalog_search`<br>• `trend_search` | Expert fashion stylist. Handles outfit composition, style trends, and personalized recommendations using high reasoning. |
+| **Inventory & Pricing** | `claude-haiku-4-5` | • `catalog_search`<br>• `check_inventory` (MCP Toolbox → BigQuery)<br>• `get_loyalty_discount` (MCP Toolbox → BigQuery) | Fast, deterministic lookups for product specifications, catalog pricing, live per-size stock, and loyalty tier. |
 | **Returns & Care** | `claude-haiku-4-5` | • `catalog_search` | Garment policy, returns, exchanges, and material-specific care advice. |
 
 ---
@@ -77,11 +77,11 @@ The architecture strictly delineates unstructured vector search from structured 
 │   Style Advisor Agent   │   │ Inventory Agent  │   │  Returns & Care Agent   │
 └─────────────────────────┘   └────────┬─────────┘   └─────────────────────────┘
                                        │
-                                       │ (HTTP SQL Tools - Port 5000)
+                                       │ (ToolboxToolset — HTTP + ID token)
                                        ▼
                           ┌──────────────────────────┐
                           │    MCP Toolbox Service   │
-                          │   (Cloud Run Microservice)│
+                          │  (Cloud Run, private)    │
                           └────────────┬─────────────┘
                                        │
                                        │ (SQL)
@@ -97,9 +97,10 @@ The architecture strictly delineates unstructured vector search from structured 
 * **Access:** Accessed via python tool functions (`catalog_search` and `trend_search`) in all three specialist agents via `vertexai.preview.rag.retrieval_query`.
 
 ### 2. MCP Toolbox Cloud Run Service (`vogue-toolbox`)
-* **Purpose:** A standalone Cloud Run microservice exposing Model Context Protocol (MCP) tool endpoints.
-* **Access:** Used by `inventory_specialist` to execute parameterized SQL lookups against BigQuery `inventory` and `loyalty_program` tables.
+* **Purpose:** A standalone Cloud Run microservice exposing Model Context Protocol (MCP) tool endpoints. The SQL is declared in `toolbox/tools.yaml`, so the queries are fixed server-side and the model only supplies bound parameters.
+* **Access:** Used by `inventory_specialist` (via `toolbox_adk.ToolboxToolset`) to execute parameterized SQL lookups against the BigQuery `inventory` and `loyalty_program` tables.
+* **Security:** The service is deployed **private** (`--no-allow-unauthenticated`). `CredentialStrategy.workload_identity` mints a Google-signed ID token for the service URL from the caller's ADC — the Agent Runtime service agent (`service-<project-number>@gcp-sa-aiplatform-re.iam.gserviceaccount.com`) in production, or the developer's own credentials for a local `adk web` run. That identity holds `roles/run.invoker` on the service. The toolbox itself runs as a dedicated least-privilege service account (`vogue-toolbox-sa`) with only `bigquery.dataViewer` + `bigquery.jobUser` — it can read the two tables and nothing else.
 
 ### 3. Signal / Execute Pattern (`checkout.py`)
-* **Purpose:** Executes transactional orders and account updates outside the Agent Runtime sandbox.
-* **Access:** Because the Agent Runtime runtime sandbox cannot connect directly to BigQuery, tools like `place_order`, `check_stock`, and `check_loyalty` emit **signals** in the event stream. The FastAPI relay server on Cloud Run intercepts these events and executes real BigQuery queries via `checkout.py`.
+* **Purpose:** Executes transactional orders and account updates outside the agent.
+* **Access:** Reads reach BigQuery from the agent itself, through the Toolbox above. The transactional path is separated on purpose, for two reasons: money-moving logic — discount maths, payment, the order row — stays off the model and runs as ordinary deterministic server code, and the storefront needs the outcome in order to render a confirmation. So `place_order`, `check_stock`, `check_loyalty`, `quote_order`, `get_order`, and `enroll_loyalty` emit **signals** in the event stream; the FastAPI relay on Cloud Run intercepts them and executes the real BigQuery work via `checkout.py`.

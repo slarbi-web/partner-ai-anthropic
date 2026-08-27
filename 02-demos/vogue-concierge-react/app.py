@@ -80,10 +80,15 @@ AGENT_ENGINE_RESOURCE = (
 
 app = FastAPI(title="Vogue Concierge — AI Boutique", version="4.0.0")
 
+# The UI is served from this same origin, so CORS only needs to be permissive
+# enough for a local `npm run dev` frontend to talk to a deployed backend.
+# `allow_credentials` stays off: combining it with a wildcard origin makes
+# Starlette echo back whatever Origin it is sent, which would let any site drive
+# authenticated requests. Nothing here reads cookies or an Authorization header,
+# so there is no reason to opt in.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -127,10 +132,12 @@ def extract_text_from_events(events) -> str:
 
 
 def intercept_bigquery_action(events):
-    """The agent can't reach BigQuery, so it SIGNALS BigQuery actions via tool calls
-    (place_order / check_loyalty). We detect those in the event stream and run the
-    REAL action here on Cloud Run, returning (response_text, products). Returns
-    (None, None) for a normal turn so the caller uses the agent's own reply."""
+    """The agent SIGNALS transactional BigQuery actions via tool calls
+    (place_order / check_loyalty) rather than performing them, so the money-moving
+    logic stays off the model and the storefront can render the outcome. We detect
+    those in the event stream and run the REAL action here on Cloud Run, returning
+    (response_text, products). Returns (None, None) for a normal turn so the caller
+    uses the agent's own reply."""
     # Step 2 (charge): the customer approved — take payment & record the order(s).
     # The basket is in `items`; checkout returns the products it ACTUALLY placed,
     # so the cards reflect reality (no hallucinated items).
@@ -361,15 +368,33 @@ if UI_DIR.exists():
     if next_dir.exists():
         app.mount("/_next", StaticFiles(directory=str(next_dir)), name="next-static")
 
+    # Resolved once so the containment check below compares real paths.
+    UI_ROOT = UI_DIR.resolve()
+
+    def _ui_file(candidate: Path):
+        """Return `candidate` only if it is a real file inside the built UI.
+
+        The catch-all route takes an arbitrary path straight off the URL, so it
+        has to be contained explicitly. Resolving first collapses `..` segments
+        and follows symlinks; anything that lands outside ui/out is rejected and
+        falls through to index.html rather than being served.
+        """
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            return None
+        if not resolved.is_relative_to(UI_ROOT) or not resolved.is_file():
+            return None
+        return resolved
+
     @app.get("/{path:path}")
     async def serve_frontend(path: str):
-        file_path = UI_DIR / path
-        if file_path.is_file():
-            return FileResponse(str(file_path))
-        html_path = UI_DIR / f"{path}.html"
-        if html_path.is_file():
-            return FileResponse(str(html_path))
-        return FileResponse(str(UI_DIR / "index.html"))
+        for candidate in (UI_DIR / path, UI_DIR / f"{path}.html"):
+            found = _ui_file(candidate)
+            if found is not None:
+                return FileResponse(str(found))
+        # Unknown route: hand back the SPA shell and let the client router deal.
+        return FileResponse(str(UI_ROOT / "index.html"))
 
 
 if __name__ == "__main__":

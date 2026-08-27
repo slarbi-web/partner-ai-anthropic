@@ -61,24 +61,11 @@ async def trend_search(query: str) -> dict:
         Dictionary with relevant trend insights and recommendations.
     """
     try:
-        from vertexai.preview import rag
-        import vertexai
-        from ..config import RAG_CORPUS_RESOURCE, RAG_REGION, PROJECT_ID
+        from .rag_retrieval import retrieve
 
-        if RAG_CORPUS_RESOURCE:
-            vertexai.init(project=PROJECT_ID, location=RAG_REGION)
-            rag_resources = [rag.RagResource(rag_corpus=RAG_CORPUS_RESOURCE)]
-            response = rag.retrieval_query(
-                rag_resources=rag_resources,
-                text=query,
-                similarity_top_k=3,
-                vector_distance_threshold=0.5,
-            )
-            if response and response.contexts and response.contexts.contexts:
-                results = []
-                for ctx in response.contexts.contexts:
-                    results.append({"content": ctx.text, "score": ctx.score})
-                return {"source": "rag", "results": results}
+        hits = retrieve(query, top_k=3)
+        if hits:
+            return {"source": "rag", "results": hits}
     except Exception as e:
         print(f"RAG trend search failed ({e}), using local report")
 

@@ -53,6 +53,28 @@ def create_dataset(client: bigquery.Client):
         print(f"Created dataset {DATASET_ID}")
 
 
+def replace_table_rows(client: bigquery.Client, table_id: str, schema: list, rows: list, label: str):
+    """Atomically replace a table's contents with `rows`, via a load job.
+
+    This deliberately does not use `insert_rows_json`. Streaming inserts land in
+    a write-optimised buffer that DML cannot touch for up to ~30 minutes, so the
+    obvious-looking "DELETE FROM t WHERE true, then stream the new rows" pairing
+    is not actually idempotent: re-running the script within that window leaves
+    the previous rows in place and the tools then read duplicate SKUs.
+
+    A load job with WRITE_TRUNCATE swaps the whole table in one atomic operation,
+    is immediately queryable, and costs nothing. `job.result()` raises on
+    failure, so a bad load stops setup instead of printing an error and carrying
+    on with a half-populated table.
+    """
+    job_config = bigquery.LoadJobConfig(
+        schema=schema,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+    )
+    client.load_table_from_json(rows, table_id, job_config=job_config).result()
+    print(f"Loaded {len(rows)} {label}")
+
+
 def create_inventory_table(client: bigquery.Client, catalog: list):
     """Create and populate the inventory table with stock for all 30 products."""
     table_id = f"{PROJECT_ID}.{DATASET_ID}.inventory"
@@ -92,13 +114,7 @@ def create_inventory_table(client: bigquery.Client, catalog: list):
                 "material": product.get("material", ""),
             })
 
-    # Clear existing data and insert
-    client.query(f"DELETE FROM `{table_id}` WHERE true").result()
-    errors = client.insert_rows_json(table_id, rows)
-    if errors:
-        print(f"Errors inserting inventory: {errors}")
-    else:
-        print(f"Inserted {len(rows)} inventory rows")
+    replace_table_rows(client, table_id, schema, rows, "inventory rows")
 
 
 def create_loyalty_table(client: bigquery.Client):
@@ -135,13 +151,7 @@ def create_loyalty_table(client: bigquery.Client):
         {"customer_id": "CUST-1050", "customer_name": "Zara Mitchell", "tier": "Silver", "discount_percent": 10, "points_balance": 1100, "free_shipping": False, "member_since": "2024-09-01"},
     ]
 
-    # Clear existing data and insert
-    client.query(f"DELETE FROM `{table_id}` WHERE true").result()
-    errors = client.insert_rows_json(table_id, customers)
-    if errors:
-        print(f"Errors inserting loyalty data: {errors}")
-    else:
-        print(f"Inserted {len(customers)} loyalty program members")
+    replace_table_rows(client, table_id, schema, customers, "loyalty program members")
 
 
 def main():

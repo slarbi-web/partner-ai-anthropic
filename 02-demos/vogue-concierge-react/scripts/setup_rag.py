@@ -28,7 +28,13 @@ import os
 import time
 
 import vertexai
-from vertexai.preview import rag
+
+# `agentplatform.rag` ships inside google-cloud-aiplatform and is where both
+# `vertexai.preview.rag` and `vertexai.rag` now redirect — each of those emits a
+# deprecation warning pointing here, so moving to `vertexai.rag` would only swap
+# one deprecated import for another. Retrieval and chunking knobs live in config
+# objects in this API rather than as flat keyword arguments.
+from agentplatform import rag
 
 PROJECT_ID = os.environ.get("VERTEXAI_PROJECT")
 if not PROJECT_ID:
@@ -123,8 +129,9 @@ def ingest_files(corpus):
     response = rag.import_files(
         corpus_name=corpus.name,
         paths=gcs_uris,
-        chunk_size=512,
-        chunk_overlap=100,
+        transformation_config=rag.TransformationConfig(
+            chunking_config=rag.ChunkingConfig(chunk_size=512, chunk_overlap=100),
+        ),
     )
 
     print(f"RAG ingestion complete: {response.imported_rag_files_count} files imported")
@@ -135,10 +142,12 @@ def test_rag_query(corpus):
     """Test the RAG corpus with a sample query."""
     print("\nTesting RAG query: 'summer wedding dress'")
     response = rag.retrieval_query(
-        rag_resources=[rag.RagResource(rag_corpus=corpus.name)],
         text="summer wedding dress",
-        similarity_top_k=3,
-        vector_distance_threshold=0.5,
+        rag_resources=[rag.RagResource(rag_corpus=corpus.name)],
+        rag_retrieval_config=rag.RagRetrievalConfig(
+            top_k=3,
+            filter=rag.Filter(vector_distance_threshold=0.5),
+        ),
     )
 
     if response and response.contexts and response.contexts.contexts:

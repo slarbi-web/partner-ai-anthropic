@@ -58,7 +58,6 @@ gcloud run deploy "${SERVICE_NAME}" \
   --set-env-vars "VERTEXAI_PROJECT=${PROJECT_ID}" \
   --set-env-vars "PROJECT_NUMBER=${PROJECT_NUMBER}" \
   --set-env-vars "AGENT_ENGINE_ID=${AGENT_ENGINE_ID}" \
-  --set-env-vars "TOOLBOX_URL=http://localhost:5000" \
   --service-account "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 echo ""

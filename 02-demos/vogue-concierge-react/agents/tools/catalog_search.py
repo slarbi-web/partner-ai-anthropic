@@ -111,25 +111,11 @@ async def catalog_search(query: str, audience: str = "") -> dict:
     # returns free text that can't be filtered by audience reliably.
     if aud not in ("women", "men", "unisex"):
         try:
-            from vertexai.preview import rag
-            import vertexai
-            from ..config import RAG_CORPUS_RESOURCE, RAG_REGION, PROJECT_ID
+            from .rag_retrieval import retrieve
 
-            if RAG_CORPUS_RESOURCE:
-                vertexai.init(project=PROJECT_ID, location=RAG_REGION)
-                rag_resources = [rag.RagResource(rag_corpus=RAG_CORPUS_RESOURCE)]
-                response = rag.retrieval_query(
-                    rag_resources=rag_resources,
-                    text=query,
-                    similarity_top_k=5,
-                    vector_distance_threshold=0.5,
-                )
-                if response and response.contexts and response.contexts.contexts:
-                    results = [
-                        {"content": ctx.text, "score": ctx.score}
-                        for ctx in response.contexts.contexts
-                    ]
-                    return {"source": "rag", "results": results}
+            hits = retrieve(query, top_k=5)
+            if hits:
+                return {"source": "rag", "results": hits}
         except Exception as e:
             print(f"RAG search failed ({e}), using local catalog")
 

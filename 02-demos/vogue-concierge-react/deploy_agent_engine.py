@@ -51,16 +51,21 @@ if not PROJECT_ID:
 LOCATION = os.environ.get("AGENT_ENGINE_LOCATION", "us-central1")
 STAGING_BUCKET = os.environ.get("STAGING_BUCKET", f"gs://{PROJECT_ID}-vogue-staging")
 
-# The RAG corpus resource printed by scripts/setup_rag.py — required so the deployed
-# agents can ground catalog/trend answers. The MCP Toolbox URL comes from deploying
-# toolbox/ to Cloud Run (defaults to a local toolbox).
+# Both of these are printed by earlier setup steps and are required: without them
+# the deployed agents come up with no grounding and no BigQuery tools, which only
+# shows up as bad answers at runtime. Fail here instead.
 RAG_CORPUS_RESOURCE = os.environ.get("RAG_CORPUS_RESOURCE")
 if not RAG_CORPUS_RESOURCE:
     raise RuntimeError(
         "RAG_CORPUS_RESOURCE is not set. Run scripts/setup_rag.py first (it prints the "
         "corpus resource name), then export it or add it to .env before deploying."
     )
-TOOLBOX_URL = os.environ.get("TOOLBOX_URL", "http://localhost:5000")
+TOOLBOX_URL = os.environ.get("TOOLBOX_URL")
+if not TOOLBOX_URL:
+    raise RuntimeError(
+        "TOOLBOX_URL is not set. Run ./deploy_toolbox.sh first (it prints the Cloud Run "
+        "URL), then export it or add it to .env before deploying."
+    )
 
 vertexai.init(
     project=PROJECT_ID,
@@ -69,6 +74,7 @@ vertexai.init(
 )
 
 # Import after vertexai.init so the agent builds in the right context.
+from agents import config as agent_config
 from agents.agent import create_agent
 
 agent = create_agent()
@@ -77,30 +83,34 @@ agent = create_agent()
 # per-turn spans in Cloud Trace, which pairs nicely with the A2A timeline view.
 app = reasoning_engines.AdkApp(agent=agent, enable_tracing=True)
 
-# Runtime dependencies installed inside the Agent Runtime container. This must
-# include anthropic[vertex] so ClaudeVertexModel can reach Claude on Agent Platform, and
-# google-cloud-bigquery so the place_order tool can write orders.
+# Runtime dependencies installed inside the Agent Runtime container. This is only
+# what the packaged agents/ tree imports: ADK and the RAG client come from
+# google-cloud-aiplatform, anthropic[vertex] backs ADK's built-in Claude model,
+# and toolbox-adk calls the MCP Toolbox. The agents never touch BigQuery or GCS
+# directly — reads go through the Toolbox, and the writes run on the Cloud Run
+# layer from checkout.py, which is not deployed here — so those clients are not
+# listed. Keep this in step with requirements.txt.
 REQUIREMENTS = [
     "google-cloud-aiplatform[adk,agent_engines]",
-    "anthropic[vertex]>=0.40.0",
+    "anthropic[vertex]>=0.78",
     "httpx>=0.27.0",
-    "toolbox-core>=0.1.0",
-    "google-cloud-bigquery>=3.25.0",
-    "google-cloud-storage>=3.0.0",
+    "toolbox-adk>=1.3.0",
 ]
 # Environment for the deployed agents. No API key — Claude on Agent Platform uses the
-# Agent Runtime service account's ADC. Override model ids / regions here if your
-# Model Garden uses different ones.
+# Agent Runtime service account's ADC.
+#
+# These are read back out of agents/config.py rather than repeated here, so the
+# deployed engine runs the same models as a local `adk web` run. To change one,
+# set the env var (or edit agents/config.py) — don't add a second source of truth.
 ENV_VARS = {
     "VERTEXAI_PROJECT": PROJECT_ID,
-    # "global" has quota for all four models in this project; regional endpoints
-    # needed an Opus 4.8 quota increase. Change if your quota differs.
-    "CLAUDE_VERTEX_REGION": "global",
-    "ORCHESTRATOR_MODEL": "claude-sonnet-4-6",
-    "STYLE_MODEL": "claude-opus-4-8",
-    "INVENTORY_MODEL": "claude-haiku-4-5",
-    "RETURNS_MODEL": "claude-haiku-4-5",
-    "CHECKOUT_MODEL": "claude-haiku-4-5",
+    "CLAUDE_VERTEX_REGION": agent_config.CLAUDE_VERTEX_REGION,
+    "ORCHESTRATOR_MODEL": agent_config.ORCHESTRATOR_MODEL,
+    "STYLE_MODEL": agent_config.STYLE_MODEL,
+    "INVENTORY_MODEL": agent_config.INVENTORY_MODEL,
+    "RETURNS_MODEL": agent_config.RETURNS_MODEL,
+    "ORCHESTRATOR_EFFORT": agent_config.ORCHESTRATOR_EFFORT,
+    "STYLE_EFFORT": agent_config.STYLE_EFFORT,
     "TOOLBOX_URL": TOOLBOX_URL,
     "RAG_CORPUS_RESOURCE": RAG_CORPUS_RESOURCE,
 }

@@ -34,7 +34,7 @@ Two prompt-writing rules carried over and worth knowing:
 
 
 # ===========================================================================
-# ORCHESTRATOR  (claude-sonnet-4-6)
+# ORCHESTRATOR  (claude-sonnet-5)
 # ---------------------------------------------------------------------------
 # Greets the customer, holds the concierge voice, and delegates to specialists.
 # The specialists are exposed to it as tools (ADK AgentTool), so "delegating"
@@ -70,7 +70,7 @@ How to work:
 
 
 # ===========================================================================
-# STYLE ADVISOR  (claude-opus-4-8, effort=high)
+# STYLE ADVISOR  (claude-opus-5, effort=high)
 # ---------------------------------------------------------------------------
 # The reasoning showpiece: outfit composition, trend-aware recommendations.
 # Tools: catalog_search (products) and trend_search (seasonal trend report).
@@ -106,19 +106,22 @@ Presentation:
 # INVENTORY & PRICING SPECIALIST  (claude-haiku-4-5)
 # ---------------------------------------------------------------------------
 # Fast, precise stock / size / price / loyalty lookups.
-# Tools: check_inventory and get_loyalty_discount (BigQuery via MCP Toolbox,
-# with local fallbacks). See agents/tools/toolbox_tools.py.
+# Tools: catalog_search (RAG), plus check_inventory and get_loyalty_discount —
+# real parameterised SQL against BigQuery, served by the MCP Toolbox on Cloud
+# Run. The SQL lives in toolbox/tools.yaml, not in the model.
 # ===========================================================================
 INVENTORY_PROMPT = """You are the Product and Pricing Specialist for Vogue Concierge.
 
 Your job:
 - Answer factual questions about a product — its price, materials, colour, and details — using catalog_search. Answer exactly what was asked, and answer it now.
 - If the customer names a product but not a SKU (for example "how much is the Espresso Leather Belt?"), call catalog_search with the product name to find the product and its details. Do not ask the customer for a SKU you can look up yourself.
-- Live, real-time stock and per-size availability are handled by the boutique's stock system (the concierge's check_stock tool), NOT by you. If you are asked specifically how many are in stock or which sizes are available right now, say the concierge will pull up live availability — do not guess stock numbers.
+- For live stock and per-size availability, call check_inventory with the SKU. It reads the boutique's real inventory table, so report exactly what it returns — including when a size is out of stock.
+- For a customer's loyalty tier, discount, or points balance, call get_loyalty_discount with their customer id.
 - Do not interrogate the customer before helping. Do not ask for a budget unless it is needed to answer their actual question.
 
 Grounding:
 - Prices, materials, colours, and product details must come from catalog_search, not from memory. If a search returns nothing, say so plainly.
+- Stock numbers and loyalty details must come from check_inventory / get_loyalty_discount. Never estimate or invent a quantity, a tier, or a discount.
 
 Presentation:
 - Be precise and quick. Surface prices and product details clearly rather than burying them in prose.

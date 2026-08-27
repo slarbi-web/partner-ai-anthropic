@@ -21,11 +21,15 @@ Usage:
     python tests/test_agent.py
 """
 
+import asyncio
 import sys
 import os
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# The tools are ADK tools, which are async functions, so the tests that exercise
+# them are async too and the runner below drives them on one event loop.
 
 
 def test_agent_creation():
@@ -47,12 +51,12 @@ def test_agent_creation():
     return True
 
 
-def test_catalog_search():
+async def test_catalog_search():
     """Test the catalog search tool."""
     print("\nTesting catalog_search tool...")
 
     from agents.tools.catalog_search import catalog_search
-    result = catalog_search("summer wedding dress")
+    result = await catalog_search("summer wedding dress")
 
     print(f"  Source: {result['source']}")
     print(f"  Results: {len(result['results'])}")
@@ -67,12 +71,12 @@ def test_catalog_search():
     return True
 
 
-def test_trend_search():
+async def test_trend_search():
     """Test the trend search tool."""
     print("\nTesting trend_search tool...")
 
     from agents.tools.trend_rag import trend_search
-    result = trend_search("evening glamour cocktail")
+    result = await trend_search("evening glamour cocktail")
 
     print(f"  Source: {result['source']}")
     print(f"  Results: {len(result['results'])}")
@@ -84,33 +88,43 @@ def test_trend_search():
     return True
 
 
-def test_fallback_tools():
-    """Test the fallback BigQuery tools."""
-    print("\nTesting fallback tools...")
+def test_inventory_toolset():
+    """The Inventory Specialist must be wired to the MCP Toolbox.
 
-    from agents.tools.toolbox_tools import check_inventory, get_loyalty_discount
+    We check the wiring, not the queries: the toolset resolves its tools lazily
+    on first call, so this runs offline. Actually executing `check_inventory`
+    needs the deployed Toolbox and a seeded BigQuery dataset.
+    """
+    print("\nTesting MCP Toolbox wiring...")
 
-    inv = check_inventory("SKU-001")
-    print(f"  Inventory for SKU-001: {inv['total_units']} units")
-    assert 'sku' in inv
+    from toolbox_adk import ToolboxToolset
+    from agents import config
+    from agents.agent import create_agent
 
-    loyalty = get_loyalty_discount("CUST-1042")
-    print(f"  Loyalty for CUST-1042: {loyalty['tier']} ({loyalty['discount_percent']}% off)")
-    assert 'tier' in loyalty
+    root = create_agent()
+    inventory = next(
+        t.agent for t in root.tools
+        if getattr(getattr(t, "agent", None), "name", None) == "inventory_specialist"
+    )
+    toolsets = [t for t in inventory.tools if isinstance(t, ToolboxToolset)]
+
+    print(f"  Toolbox URL: {config.TOOLBOX_URL}")
+    print(f"  ToolboxToolset attached: {len(toolsets)}")
+    assert len(toolsets) == 1, "inventory_specialist is not wired to the MCP Toolbox"
 
     print("  PASSED")
     return True
 
 
-def main():
+async def main():
     print("=" * 60)
     print("Vogue Concierge — Agent Tests")
     print("=" * 60)
 
     results = []
-    results.append(test_catalog_search())
-    results.append(test_trend_search())
-    results.append(test_fallback_tools())
+    results.append(await test_catalog_search())
+    results.append(await test_trend_search())
+    results.append(test_inventory_toolset())
     results.append(test_agent_creation())
 
     print(f"\n{'=' * 60}")
@@ -123,5 +137,5 @@ def main():
 
 
 if __name__ == "__main__":
-    success = main()
+    success = asyncio.run(main())
     exit(0 if success else 1)
