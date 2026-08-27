@@ -131,54 +131,139 @@ def extract_text_from_events(events) -> str:
     return final_response
 
 
-def intercept_bigquery_action(events):
+# A customer who joins at checkout is charged on a LATER turn than the one that
+# created their account, and the agent never learns the new ID — the sign-up runs
+# here on Cloud Run and the tool result the engine sees is only a placeholder. So
+# the follow-up place_order arrives with no customer_id. This maps an Agent Runtime
+# session to the member it enrolled, so the charge keeps the discount the customer
+# just approved. Bounded, because a warm instance would otherwise grow it forever.
+_ENROLLED_MEMBER = {}
+_ENROLLED_MEMBER_MAX = 500
+
+
+def _remember_member(session_id, customer_id):
+    """Record (or clear) the member enrolled in `session_id`."""
+    if not session_id:
+        return
+    if session_id not in _ENROLLED_MEMBER and len(_ENROLLED_MEMBER) >= _ENROLLED_MEMBER_MAX:
+        _ENROLLED_MEMBER.pop(next(iter(_ENROLLED_MEMBER)), None)
+    _ENROLLED_MEMBER[session_id] = customer_id or ""
+
+
+def _member_id_for_session(session_id, user_id):
+    """The loyalty ID of a customer who joined earlier in THIS conversation, or "".
+
+    The in-process map above is only a fast path: Cloud Run can serve one browser
+    conversation from more than one instance, so a miss is rebuilt from the Agent
+    Runtime session, which every instance can read. The session records the
+    enroll_loyalty call, and the name on it identifies the account that call
+    created. Misses are cached too, so a guest costs one lookup per conversation.
+    """
+    if not session_id or not remote_app:
+        return ""
+    if session_id in _ENROLLED_MEMBER:
+        return _ENROLLED_MEMBER[session_id]
+
+    name = ""
+    try:
+        session = remote_app.get_session(user_id=user_id, session_id=session_id)
+        for event in session.get("events") or []:
+            for part in (event.get("content") or {}).get("parts") or []:
+                # get_session returns camelCase; stream_query returns snake_case.
+                call = part.get("functionCall") or part.get("function_call") or {}
+                if call.get("name") == "enroll_loyalty":
+                    name = (call.get("args") or {}).get("name") or name
+    except Exception as e:  # noqa: BLE001 — recovery is best effort, never fatal
+        print(f"[app] could not read session history for {session_id}: {e}")
+        return ""
+
+    customer_id = checkout.find_member_by_name(name) if name else ""
+    _remember_member(session_id, customer_id)
+    return customer_id
+
+
+def intercept_bigquery_action(events, session_id="", user_id="web_user"):
     """The agent SIGNALS transactional BigQuery actions via tool calls
     (place_order / check_loyalty) rather than performing them, so the money-moving
     logic stays off the model and the storefront can render the outcome. We detect
     those in the event stream and run the REAL action here on Cloud Run, returning
     (response_text, products). Returns (None, None) for a normal turn so the caller
     uses the agent's own reply."""
+    # One checkout action runs per turn and the first match below wins, so the two
+    # basket signals are resolved up front rather than inline.
+    order = checkout.find_tool_call(events, "place_order")
+    if not (order and (order.get("items") or order.get("sku"))):
+        order = None
+    quote = checkout.find_tool_call(events, "quote_order")
+    if not (quote and (quote.get("items") or quote.get("sku"))):
+        quote = None
+
+    # Enrolment is settled BEFORE the basket action even though it is the lowest
+    # priority signal, because a customer who joins at checkout produces BOTH in a
+    # single turn: "sign me up" and "now summarise my basket". Resolving it further
+    # down would let the basket branch return first and drop the sign-up on the
+    # floor. The new ID does not exist when the agent picks its arguments, so the
+    # quote/place signal arrives with no customer_id — we create the account here
+    # and thread the ID into whichever basket action shares the turn, so the
+    # membership discounts the very order that sold it. The welcome is prepended
+    # to the checkout summary, not swapped for it.
+    enrolment = ""
+    new_customer_id = None
+    enroll = checkout.find_tool_call(events, "enroll_loyalty")
+    if enroll and enroll.get("name"):
+        r = checkout.enroll_loyalty(
+            enroll.get("name"), enroll.get("email"),
+            continuing_to_checkout=bool(order or quote),
+        )
+        enrolment = r["text"]
+        new_customer_id = r.get("customer_id")
+        _remember_member(session_id, new_customer_id)
+
+    def result(text, products=None):
+        """Return `text`, prefixed with the welcome if a sign-up shared this turn."""
+        return (f"{enrolment}\n\n---\n\n{text}" if enrolment else text), (products or [])
+
     # Step 2 (charge): the customer approved — take payment & record the order(s).
     # The basket is in `items`; checkout returns the products it ACTUALLY placed,
     # so the cards reflect reality (no hallucinated items).
-    order = checkout.find_tool_call(events, "place_order")
-    if order and (order.get("items") or order.get("sku")):
+    if order:
         r = checkout.finalize_order(
-            items=order.get("items"), customer_id=order.get("customer_id"),
+            items=order.get("items"),
+            customer_id=(order.get("customer_id") or new_customer_id
+                         or _member_id_for_session(session_id, user_id) or None),
             sku=order.get("sku"), size=order.get("size"), quantity=order.get("quantity", 1),
         )
-        return r["text"], r.get("products", [])
+        return result(r["text"], r.get("products", []))
 
     # Step 1 (summary): show the confirm-to-pay summary with the real basket total.
-    quote = checkout.find_tool_call(events, "quote_order")
-    if quote and (quote.get("items") or quote.get("sku")):
+    if quote:
         r = checkout.quote_order(
-            items=quote.get("items"), customer_id=quote.get("customer_id"),
+            items=quote.get("items"),
+            customer_id=(quote.get("customer_id") or new_customer_id
+                         or _member_id_for_session(session_id, user_id) or None),
             sku=quote.get("sku"), size=quote.get("size"), quantity=quote.get("quantity", 1),
         )
-        return r["text"], r.get("products", [])
+        return result(r["text"], r.get("products", []))
 
     loyalty = checkout.find_tool_call(events, "check_loyalty")
     if loyalty and loyalty.get("customer_id"):
-        return checkout.loyalty_status(loyalty.get("customer_id"))["text"], []
+        return result(checkout.loyalty_status(loyalty.get("customer_id"))["text"])
 
     # Live stock: real BigQuery inventory (the engine's view was mock).
     stock = checkout.find_tool_call(events, "check_stock")
     if stock and stock.get("sku"):
         r = checkout.stock_status(stock.get("sku"))
-        return r["text"], r.get("products", [])
+        return result(r["text"], r.get("products", []))
 
     # Order lookup: read a stored order back from BigQuery.
     look = checkout.find_tool_call(events, "get_order")
     if look and look.get("order_id"):
         r = checkout.get_order(look.get("order_id"))
-        return r["text"], r.get("products", [])
+        return result(r["text"], r.get("products", []))
 
-    # Loyalty enrollment: create a real new member + generate their ID.
-    enroll = checkout.find_tool_call(events, "enroll_loyalty")
-    if enroll and enroll.get("name"):
-        r = checkout.enroll_loyalty(enroll.get("name"), enroll.get("email"))
-        return r["text"], []
+    # A sign-up on its own turn: the welcome message is the whole reply.
+    if enrolment:
+        return enrolment, []
 
     return None, None
 
@@ -293,7 +378,7 @@ async def chat(request: Request):
     # If the agent signalled a BigQuery action (order / loyalty), run the REAL
     # action here (Cloud Run has BigQuery access; the engine does not) and return
     # the authoritative result in place of the agent's placeholder.
-    resp_text, prods = intercept_bigquery_action(events)
+    resp_text, prods = intercept_bigquery_action(events, session_id, user_id)
     if resp_text is not None:
         return {"response": resp_text, "products": prods, "session_id": session_id}
 
@@ -349,7 +434,7 @@ async def chat_stream(request: Request):
 
         # Finalize: a BigQuery action (order / loyalty) runs the real thing;
         # otherwise use the agent's own reply.
-        resp_text, prods = intercept_bigquery_action(events)
+        resp_text, prods = intercept_bigquery_action(events, session_id, user_id)
         if resp_text is not None:
             final = {"response": resp_text, "products": prods, "session_id": session_id}
         else:

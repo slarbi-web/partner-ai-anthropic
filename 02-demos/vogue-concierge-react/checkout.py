@@ -488,12 +488,16 @@ def _next_customer_id() -> str:
     return f"CUST-{n}"
 
 
-def enroll_loyalty(name: str, email: str = None) -> dict:
+def enroll_loyalty(name: str, email: str = None, continuing_to_checkout: bool = False) -> dict:
     """Create a REAL new loyalty member in BigQuery (Cloud Run only) and return their
     new ID. New members start at Bronze (5% off) with a 100-point welcome bonus.
 
     This is the 'new customer' path; existing members simply give their ID (read by
     `loyalty_status`). Uses a DML INSERT so the account is immediately queryable.
+
+    Set `continuing_to_checkout` when the caller is about to append an order summary
+    below this message — the closing invitation to shop is replaced by a note that
+    the new discount already applies, so the two messages read as one.
     """
     if not name or not str(name).strip():
         return {"ok": False, "text": "I'd love to set up your membership! What name shall I put on the account?"}
@@ -526,10 +530,39 @@ def enroll_loyalty(name: str, email: str = None) -> dict:
         "- **Welcome bonus:** 100 points",
         "- **Earning:** 1 point per $1 spent — your discount and points apply automatically when you give this ID.",
         "",
-        "Would you like to use it on an order now? 🖤",
+        ("Your new member discount is already applied to the summary below. 🖤"
+         if continuing_to_checkout else "Would you like to use it on an order now? 🖤"),
     ])
     return {"ok": True, "customer_id": cid, "tier": "Bronze",
             "discount_percent": 5, "points_balance": 100, "text": text}
+
+
+
+def find_member_by_name(name: str) -> str:
+    """The loyalty ID most recently issued to `name`, or "" if there is none.
+
+    Used to recover the account created earlier in a conversation when the caller
+    only knows the name the customer signed up with (see `_member_id_for_session`
+    in app.py). Newest account wins, so a repeated name resolves to the sign-up
+    that just happened rather than an older namesake.
+    """
+    if not name or not str(name).strip():
+        return ""
+    try:
+        from google.cloud import bigquery
+
+        client = bigquery.Client(project=PROJECT_ID)
+        rows = list(client.query(
+            f"SELECT customer_id FROM `{LOYALTY_TABLE}` WHERE customer_name = @name "
+            f"ORDER BY member_since DESC, customer_id DESC LIMIT 1",
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("name", "STRING", str(name).strip()),
+            ]),
+        ).result())
+        return rows[0]["customer_id"] if rows else ""
+    except Exception as e:  # noqa: BLE001 — recovery is best effort
+        print(f"[checkout] find_member_by_name failed: {e}")
+        return ""
 
 
 def finalize_order(items=None, customer_id: str = None, sku: str = None, size: str = None, quantity: int = 1) -> dict:
