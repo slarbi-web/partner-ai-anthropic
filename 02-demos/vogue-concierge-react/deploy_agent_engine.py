@@ -90,8 +90,17 @@ app = reasoning_engines.AdkApp(agent=agent, enable_tracing=True)
 # directly — reads go through the Toolbox, and the writes run on the Cloud Run
 # layer from checkout.py, which is not deployed here — so those clients are not
 # listed. Keep this in step with requirements.txt.
+#
+# The floors are spelled out rather than left to the extras. The [adk] extra only
+# asks for google-adk>=1.27,<3, which admits releases without
+# AnthropicGenerateContentConfig/`effort` and without the thinking-block
+# round-trip inside a tool-use turn; and `agentplatform.rag`, which the RAG tools
+# import, first shipped in google-cloud-aiplatform 1.151.0 (1.150.0 raises
+# ImportError). Pip happens to pick new enough versions today — these floors make
+# that a guarantee instead of a coincidence.
 REQUIREMENTS = [
-    "google-cloud-aiplatform[adk,agent_engines]",
+    "google-cloud-aiplatform[adk,agent_engines]>=1.151",
+    "google-adk>=2.4",
     "anthropic[vertex]>=0.78",
     "httpx>=0.27.0",
     "toolbox-adk>=1.3.0",

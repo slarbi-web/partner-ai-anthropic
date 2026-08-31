@@ -5,7 +5,9 @@
 # >=2.4 for the built-in Claude model: thinking-block round-trip inside a
 # tool-use turn, and `effort` via AnthropicGenerateContentConfig.
 google-adk>=2.4
-google-cloud-aiplatform>=1.80.0
+# >=1.151 is where `agentplatform.rag` landed — the module rag_retrieval.py and
+# setup_rag.py import. 1.150.0 raises ImportError on it.
+google-cloud-aiplatform>=1.151
 
 # === Claude on Agent Platform ===
 # The [vertex] extra adds the google-auth integration so AnthropicVertex can
