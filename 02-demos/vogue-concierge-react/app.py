@@ -62,7 +62,7 @@ from fastapi.staticfiles import StaticFiles
 import vertexai
 import uvicorn
 
-import checkout  # runs the REAL BigQuery checkout (Cloud Run has BigQuery access)
+import checkout  # runs the REAL BigQuery checkout (money-moving writes stay off the model)
 
 # --- Where the deployed agent lives -----------------------------------------
 PROJECT_ID = os.environ.get("VERTEXAI_PROJECT")
@@ -376,8 +376,9 @@ async def chat(request: Request):
         )
 
     # If the agent signalled a BigQuery action (order / loyalty), run the REAL
-    # action here (Cloud Run has BigQuery access; the engine does not) and return
-    # the authoritative result in place of the agent's placeholder.
+    # action here — money-moving writes stay off the model by design, not because
+    # the engine can't reach BigQuery — and return the authoritative result in
+    # place of the agent's placeholder.
     resp_text, prods = intercept_bigquery_action(events, session_id, user_id)
     if resp_text is not None:
         return {"response": resp_text, "products": prods, "session_id": session_id}

@@ -94,7 +94,7 @@ The architecture strictly delineates unstructured vector search from structured 
 
 ### 1. Agent Platform RAG Engine
 * **Purpose:** Stores vector embeddings of unstructured text assets, including seasonal trend reports (`trend_report.md`) and product catalog descriptions (`products.json`).
-* **Access:** Accessed via python tool functions (`catalog_search` and `trend_search`) in all three specialist agents via `vertexai.preview.rag.retrieval_query`.
+* **Access:** Accessed via python tool functions (`catalog_search` and `trend_search`) in all three specialist agents, which retrieve through the shared `agents/tools/rag_retrieval.py` helper via `agentplatform.rag.retrieval_query`.
 
 ### 2. MCP Toolbox Cloud Run Service (`vogue-toolbox`)
 * **Purpose:** A standalone Cloud Run microservice exposing Model Context Protocol (MCP) tool endpoints. The SQL is declared in `toolbox/tools.yaml`, so the queries are fixed server-side and the model only supplies bound parameters.
