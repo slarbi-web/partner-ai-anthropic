@@ -190,11 +190,11 @@ cat <<EOF
     Vogue Concierge needs these models enabled in Agent Platform Model Garden for
     project ${BOLD}${VERTEXAI_PROJECT}${RST}:
       • Claude Sonnet 5, Claude Opus 5, Claude Haiku 4.5
-      • Gemini 2.5 Flash Image (gemini-2.5-flash-image) — generates the catalog images
+      • Gemini 3.1 Flash Image (gemini-3.1-flash-image) — generates the catalog images
     Open: ${BLU}https://console.cloud.google.com/vertex-ai/model-garden?project=${VERTEXAI_PROJECT}${RST}
     (Search each model, click "Enable" / accept terms. This can't be scripted.)
 EOF
-if ! confirm "Have you enabled the Claude models AND Gemini 2.5 Flash Image?"; then
+if ! confirm "Have you enabled the Claude models AND Gemini 3.1 Flash Image?"; then
   warn "Enable them in the console, then re-run ./bootstrap.sh (it will resume)."
   exit 0
 fi

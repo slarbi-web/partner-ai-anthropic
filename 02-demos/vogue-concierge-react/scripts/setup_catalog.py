@@ -38,10 +38,15 @@ from google.genai import types
 # Image generation runs through Gemini rather than Imagen. The Imagen publisher
 # models (imagen-3.0-*, imagen-4.0-*, and the older imagegeneration@00x) no
 # longer resolve on the Vertex endpoint — `from_pretrained` returns 404 — and
-# `vertexai.preview.vision_models` is deprecated besides. `gemini-2.5-flash-image`
+# `vertexai.preview.vision_models` is deprecated besides. `gemini-3.1-flash-image`
 # is served from the global endpoint and returns the image as inline data on the
 # response part.
-IMAGE_MODEL = "gemini-2.5-flash-image"
+#
+# Pick the 3.1 generation, not 2.5: gemini-2.5-flash-image retires on
+# 2026-10-02, and this is the first data-plane step bootstrap.sh runs, so a demo
+# pinned to it stops working at its very first command. The call is identical —
+# only the id differs.
+IMAGE_MODEL = "gemini-3.1-flash-image"
 
 PROJECT_ID = os.environ.get("VERTEXAI_PROJECT")
 if not PROJECT_ID:

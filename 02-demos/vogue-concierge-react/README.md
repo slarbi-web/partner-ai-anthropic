@@ -103,9 +103,9 @@ gcloud services enable \
   available capacity and is recommended; regional endpoints may lack Opus 5
   quota until you request an increase.
 
-**4. Gemini 2.5 Flash Image (required)**
+**4. Gemini 3.1 Flash Image (required)**
 - `scripts/setup_catalog.py` generates the 30 product images with
-  **`gemini-2.5-flash-image`** on Agent Platform, which must be
+  **`gemini-3.1-flash-image`** on Agent Platform, which must be
   **enabled/allowlisted** for your project. Without
   it, catalog setup will not complete — this is a hard requirement, not optional.
 
